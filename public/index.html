@@ -74,9 +74,8 @@ body {
 
 /* ── Chat Panel ── */
 #chat-panel {
-  width: 300px; min-width: 200px; background: rgba(15,15,30,0.95);
+  flex: 0 1 300px; min-width: 180px; background: rgba(15,15,30,0.95);
   border-left: 1px solid rgba(255,255,255,0.08); display: none; flex-direction: column;
-  flex-shrink: 0;
 }
 #chat-header {
   padding: 12px 14px; font-weight: 700; font-size: 14px;
@@ -104,11 +103,6 @@ body {
 }
 #chat-input:focus { border-color: rgba(255,255,255,0.25); }
 #chat-input::placeholder { color: rgba(255,255,255,0.25); }
-@media (max-width: 700px) {
-  #chat-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 260px; z-index: 10; }
-  #chat-panel.chat-hidden { display: none !important; }
-}
-
 /* ── Emoji Bar ── */
 #emoji-bar {
   position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
@@ -1032,34 +1026,32 @@ var vacuumSoundNodes = null;
 function playVacuumSound() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Cute, gentle machine hum — soft sine waves with wobble
     const osc1 = audioCtx.createOscillator();
     const osc2 = audioCtx.createOscillator();
-    const noise = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     const lfo = audioCtx.createOscillator();
     const lfoGain = audioCtx.createGain();
-    osc1.type = "sawtooth"; osc1.frequency.value = 80;
-    osc2.type = "square"; osc2.frequency.value = 120;
-    noise.type = "triangle"; noise.frequency.value = 240;
-    lfo.type = "sine"; lfo.frequency.value = 4;
-    lfoGain.gain.value = 12;
+    osc1.type = "sine"; osc1.frequency.value = 200;
+    osc2.type = "sine"; osc2.frequency.value = 300;
+    lfo.type = "sine"; lfo.frequency.value = 5;
+    lfoGain.gain.value = 6;
     lfo.connect(lfoGain);
     lfoGain.connect(osc1.frequency);
-    lfoGain.connect(osc2.frequency);
-    osc1.connect(gain); osc2.connect(gain); noise.connect(gain);
+    osc1.connect(gain); osc2.connect(gain);
     gain.connect(audioCtx.destination);
-    gain.gain.value = 0.035;
-    osc1.start(); osc2.start(); noise.start(); lfo.start();
-    vacuumSoundNodes = { osc1, osc2, noise, lfo, gain };
+    gain.gain.value = 0.012;
+    osc1.start(); osc2.start(); lfo.start();
+    vacuumSoundNodes = { osc1, osc2, lfo, gain };
   } catch (e) {}
 }
 function stopVacuumSound() {
   if (!vacuumSoundNodes) return;
   try {
-    vacuumSoundNodes.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+    vacuumSoundNodes.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
     const nodes = vacuumSoundNodes;
     vacuumSoundNodes = null;
-    setTimeout(() => { try { nodes.osc1.stop(); nodes.osc2.stop(); nodes.noise.stop(); nodes.lfo.stop(); } catch(e) {} }, 400);
+    setTimeout(() => { try { nodes.osc1.stop(); nodes.osc2.stop(); nodes.lfo.stop(); } catch(e) {} }, 500);
   } catch (e) { vacuumSoundNodes = null; }
 }
 
@@ -2106,13 +2098,17 @@ function gameLoop(ts) {
 function resizeCanvas() {
   const canvas = document.getElementById("game-canvas");
   const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
-  canvas.style.width = rect.width + "px"; canvas.style.height = rect.height + "px";
-  const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr); ctx.imageSmoothingEnabled = false;
+  // Let CSS (width:100%; height:100%) control display size — never set inline styles
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (w > 0 && h > 0) {
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr); ctx.imageSmoothingEnabled = false;
+  }
 }
-window.addEventListener("resize", () => { if (gameRunning) resizeCanvas(); });
+window.addEventListener("resize", () => {
+  if (gameRunning) requestAnimationFrame(resizeCanvas);
+});
 
 // ═══════════════════════════════════════════
 //  ROBOT VACUUM (physically moves & throws furniture back)
