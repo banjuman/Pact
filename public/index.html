@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pact - Virtual Office</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #1a1a2e;
+  color: #fff;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+}
+
+/* ── Entry Screen ── */
+#entry-screen {
+  position: fixed; inset: 0; z-index: 100;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  display: flex; align-items: center; justify-content: center;
+}
+.entry-card {
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24px;
+  padding: 48px 40px;
+  text-align: center;
+  width: 420px;
+  max-width: 90vw;
+}
+.entry-card h1 {
+  font-size: 48px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #e2b714, #f093fb, #4facfe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 4px;
+}
+.entry-card .subtitle {
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+  margin-bottom: 32px;
+}
+#name-input {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+  margin-bottom: 24px;
+}
+#name-input:focus { border-color: rgba(255,255,255,0.4); }
+#name-input::placeholder { color: rgba(255,255,255,0.3); }
+.char-label {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 12px;
+  text-align: left;
+}
+#character-select {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+.char-preview {
+  width: 60px; height: 72px;
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(255,255,255,0.04);
+}
+.char-preview:hover { border-color: rgba(255,255,255,0.3); transform: translateY(-2px); }
+.char-preview.selected {
+  border-color: #e2b714;
+  box-shadow: 0 0 16px rgba(226,183,20,0.3);
+  transform: translateY(-2px);
+}
+#join-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #e2b714, #f5c842);
+  color: #1a1a2e;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+#join-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(226,183,20,0.4); }
+#join-btn:active { transform: translateY(0); }
+
+/* ── Game Layout ── */
+#game-area {
+  flex: 1;
+  position: relative;
+  display: none;
+}
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #2a2a3e;
+}
+
+/* ── Chat Panel ── */
+#chat-panel {
+  width: 300px;
+  background: rgba(15,15,30,0.95);
+  border-left: 1px solid rgba(255,255,255,0.08);
+  display: none;
+  flex-direction: column;
+}
+#chat-header {
+  padding: 16px 18px;
+  font-weight: 700;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+}
+#chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#chat-messages::-webkit-scrollbar { width: 4px; }
+#chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+.chat-msg {
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.85);
+  word-break: break-word;
+}
+.chat-msg .chat-name {
+  font-weight: 700;
+  color: #e2b714;
+}
+.chat-msg.system {
+  color: rgba(255,255,255,0.35);
+  font-style: italic;
+  font-size: 12px;
+}
+#chat-input-area {
+  padding: 12px 14px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+#chat-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+}
+#chat-input:focus { border-color: rgba(255,255,255,0.25); }
+#chat-input::placeholder { color: rgba(255,255,255,0.25); }
+
+/* ── Emoji Bar ── */
+#emoji-bar {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  background: rgba(15,15,30,0.85);
+  backdrop-filter: blur(10px);
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.emoji-btn {
+  width: 40px; height: 40px;
+  border: none;
+  background: rgba(255,255,255,0.06);
+  border-radius: 10px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.emoji-btn:hover { background: rgba(255,255,255,0.15); transform: scale(1.15); }
+.emoji-btn:active { transform: scale(0.95); }
+
+/* ── HUD ── */
+#hud {
+  position: absolute;
+  top: 16px; left: 16px;
+  background: rgba(15,15,30,0.8);
+  backdrop-filter: blur(10px);
+  padding: 12px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 13px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+#hud .room-code {
+  color: #e2b714;
+  font-weight: 700;
+  font-family: monospace;
+  font-size: 14px;
+}
+#hud .player-count { color: rgba(255,255,255,0.5); }
+#copy-link-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.7);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+#copy-link-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+/* ── Overlay ── */
+#overlay {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(10,10,20,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: rgba(255,255,255,0.6);
+}
+
+/* Mobile hint */
+#mobile-hint {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.3);
+  font-size: 11px;
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<!-- Entry Screen -->
+<div id="entry-screen">
+  <div class="entry-card">
+    <h1>Pact</h1>
+    <p class="subtitle">Virtual Office</p>
+    <input id="name-input" type="text" placeholder="Enter your name" maxlength="20" autocomplete="off" />
+    <p class="char-label">Choose your character</p>
+    <div id="character-select"></div>
+    <button id="join-btn">Join Office</button>
+  </div>
+</div>
+
+<!-- Game -->
+<div id="game-area">
+  <canvas id="game-canvas"></canvas>
+  <div id="hud">
+    <span class="room-code" id="hud-room"></span>
+    <span class="player-count" id="hud-players"></span>
+    <button id="copy-link-btn">Copy Link</button>
+  </div>
+  <div id="emoji-bar">
+    <button class="emoji-btn" data-emoji="😀">😀</button>
+    <button class="emoji-btn" data-emoji="🎉">🎉</button>
+    <button class="emoji-btn" data-emoji="👍">👍</button>
+    <button class="emoji-btn" data-emoji="🔥">🔥</button>
+    <button class="emoji-btn" data-emoji="❤️">❤️</button>
+  </div>
+  <div id="mobile-hint">WASD or Arrow Keys to move</div>
+</div>
+
+<!-- Chat -->
+<div id="chat-panel">
+  <div id="chat-header">Chat</div>
+  <div id="chat-messages"></div>
+  <div id="chat-input-area">
+    <input id="chat-input" type="text" placeholder="Type a message... (Enter to send)" maxlength="500" autocomplete="off" />
+  </div>
+</div>
+
+<!-- Overlay -->
+<div id="overlay"><span id="overlay-text">Connecting...</span></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ─────────────────────────────────────────
+//  CHARACTERS
+// ─────────────────────────────────────────
+const CHARACTERS = [
+  { name: "Blue",   skin: "#f4c794", body: "#4a90d9", hair: "#3a2a1a", hairStyle: "short",    accessory: "none" },
+  { name: "Red",    skin: "#c68642", body: "#d94a4a", hair: "#1a1a1a", hairStyle: "curly",    accessory: "glasses" },
+  { name: "Green",  skin: "#ffe0bd", body: "#4ad9a5", hair: "#c2883a", hairStyle: "long",     accessory: "headphones" },
+  { name: "Yellow", skin: "#8d5524", body: "#d9a54a", hair: "#1a1a1a", hairStyle: "ponytail", accessory: "bow" },
+  { name: "Purple", skin: "#f4c794", body: "#9b59b6", hair: "#e74c3c", hairStyle: "spiky",    accessory: "hat" },
+];
+
+function drawCharacter(ctx, x, y, charIdx, direction, name, isSelf, bobOffset) {
+  const ch = CHARACTERS[charIdx] || CHARACTERS[0];
+  const cx = Math.round(x);
+  const cy = Math.round(y + (bobOffset || 0));
+
+  ctx.save();
+
+  // Shadow
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 28, 11, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs
+  ctx.fillStyle = "#3a3a5a";
+  ctx.fillRect(cx - 6, cy + 14, 5, 14);
+  ctx.fillRect(cx + 1, cy + 14, 5, 14);
+
+  // Feet
+  ctx.fillStyle = "#2a2a3a";
+  ctx.fillRect(cx - 7, cy + 25, 6, 3);
+  ctx.fillRect(cx + 1, cy + 25, 6, 3);
+
+  // Body
+  ctx.fillStyle = ch.body;
+  ctx.fillRect(cx - 9, cy + 2, 18, 14);
+  // Body shading
+  ctx.fillStyle = "rgba(0,0,0,0.1)";
+  ctx.fillRect(cx - 9, cy + 12, 18, 4);
+
+  // Arms
+  ctx.fillStyle = ch.body;
+  if (direction === "left") {
+    ctx.fillRect(cx - 13, cy + 4, 5, 10);
+    ctx.fillRect(cx + 9, cy + 5, 4, 8);
+  } else if (direction === "right") {
+    ctx.fillRect(cx - 13, cy + 5, 4, 8);
+    ctx.fillRect(cx + 9, cy + 4, 5, 10);
+  } else {
+    ctx.fillRect(cx - 13, cy + 4, 5, 10);
+    ctx.fillRect(cx + 9, cy + 4, 5, 10);
+  }
+
+  // Hands
+  ctx.fillStyle = ch.skin;
+  ctx.fillRect(cx - 13, cy + 12, 5, 3);
+  ctx.fillRect(cx + 9, cy + 12, 5, 3);
+
+  // Head
+  ctx.fillStyle = ch.skin;
+  ctx.beginPath();
+  ctx.arc(cx, cy - 4, 10, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair
+  drawHair(ctx, cx, cy, ch.hair, ch.hairStyle, direction);
+
+  // Eyes
+  ctx.fillStyle = "#222";
+  if (direction === "down" || direction === "down-left" || direction === "down-right") {
+    ctx.fillRect(cx - 4, cy - 4, 2, 3);
+    ctx.fillRect(cx + 2, cy - 4, 2, 3);
+    // Mouth
+    ctx.fillStyle = "#c0755a";
+    ctx.fillRect(cx - 1, cy + 1, 3, 1);
+  } else if (direction === "up") {
+    // back of head - no face
+  } else if (direction === "left") {
+    ctx.fillRect(cx - 5, cy - 4, 2, 3);
+    ctx.fillStyle = "#c0755a";
+    ctx.fillRect(cx - 3, cy + 1, 2, 1);
+  } else if (direction === "right") {
+    ctx.fillRect(cx + 3, cy - 4, 2, 3);
+    ctx.fillStyle = "#c0755a";
+    ctx.fillRect(cx + 1, cy + 1, 2, 1);
+  }
+
+  // Accessory
+  drawAccessory(ctx, cx, cy, ch.accessory, direction);
+
+  // Name
+  ctx.font = "bold 10px 'Segoe UI', system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.strokeStyle = "rgba(0,0,0,0.6)";
+  ctx.lineWidth = 3;
+  ctx.lineJoin = "round";
+  ctx.strokeText(name, cx, cy - 18);
+  ctx.fillStyle = isSelf ? "#FFD700" : "#fff";
+  ctx.fillText(name, cx, cy - 18);
+
+  ctx.restore();
+}
+
+function drawHair(ctx, cx, cy, color, style, dir) {
+  ctx.fillStyle = color;
+  switch (style) {
+    case "short":
+      ctx.beginPath();
+      ctx.arc(cx, cy - 7, 10, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(cx - 10, cy - 8, 20, 4);
+      break;
+    case "curly":
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.arc(cx + i * 5, cy - 12, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillRect(cx - 10, cy - 10, 20, 5);
+      break;
+    case "long":
+      ctx.beginPath();
+      ctx.arc(cx, cy - 7, 10, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(cx - 10, cy - 8, 20, 4);
+      if (dir !== "right") ctx.fillRect(cx - 12, cy - 6, 5, 16);
+      if (dir !== "left") ctx.fillRect(cx + 7, cy - 6, 5, 16);
+      break;
+    case "ponytail":
+      ctx.beginPath();
+      ctx.arc(cx, cy - 7, 10, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(cx - 10, cy - 8, 20, 4);
+      // Bun on top
+      ctx.beginPath();
+      ctx.arc(cx, cy - 17, 5, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case "spiky":
+      ctx.fillRect(cx - 10, cy - 8, 20, 5);
+      // Spikes
+      ctx.beginPath();
+      ctx.moveTo(cx - 10, cy - 8);
+      ctx.lineTo(cx - 6, cy - 18);
+      ctx.lineTo(cx - 2, cy - 8);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx - 3, cy - 8);
+      ctx.lineTo(cx + 1, cy - 20);
+      ctx.lineTo(cx + 5, cy - 8);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx + 3, cy - 8);
+      ctx.lineTo(cx + 8, cy - 16);
+      ctx.lineTo(cx + 11, cy - 8);
+      ctx.fill();
+      break;
+  }
+}
+
+function drawAccessory(ctx, cx, cy, accessory, dir) {
+  switch (accessory) {
+    case "glasses":
+      if (dir === "up") break;
+      ctx.strokeStyle = "#FFD700";
+      ctx.lineWidth = 1.5;
+      if (dir === "down") {
+        ctx.strokeRect(cx - 6, cy - 6, 5, 4);
+        ctx.strokeRect(cx + 1, cy - 6, 5, 4);
+        ctx.beginPath();
+        ctx.moveTo(cx - 1, cy - 4);
+        ctx.lineTo(cx + 1, cy - 4);
+        ctx.stroke();
+      } else if (dir === "left") {
+        ctx.strokeRect(cx - 7, cy - 6, 5, 4);
+      } else if (dir === "right") {
+        ctx.strokeRect(cx + 2, cy - 6, 5, 4);
+      }
+      break;
+    case "headphones":
+      ctx.strokeStyle = "#555";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy - 8, 11, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.stroke();
+      ctx.fillStyle = "#333";
+      ctx.fillRect(cx - 13, cy - 6, 4, 7);
+      ctx.fillRect(cx + 9, cy - 6, 4, 7);
+      break;
+    case "bow":
+      if (dir === "up") break;
+      ctx.fillStyle = "#ff6b9d";
+      ctx.beginPath();
+      ctx.arc(cx + 8, cy - 12, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + 13, cy - 12, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ff4081";
+      ctx.beginPath();
+      ctx.arc(cx + 10.5, cy - 12, 2, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case "hat":
+      ctx.fillStyle = "#2c3e50";
+      ctx.fillRect(cx - 13, cy - 14, 26, 3);
+      ctx.fillRect(cx - 9, cy - 22, 18, 10);
+      ctx.fillStyle = "#e2b714";
+      ctx.fillRect(cx - 9, cy - 14, 18, 2);
+      break;
+  }
+}
+
+// ─────────────────────────────────────────
+//  MAP
+// ─────────────────────────────────────────
+const MAP = {
+  width: 1200,
+  height: 800,
+  tileSize: 32,
+};
+
+const WALLS = [
+  { x: 0, y: 0, w: MAP.width, h: 16 },
+  { x: 0, y: MAP.height - 16, w: MAP.width, h: 16 },
+  { x: 0, y: 0, w: 16, h: MAP.height },
+  { x: MAP.width - 16, y: 0, w: 16, h: MAP.height },
+  // Meeting room partition
+  { x: 850, y: 0, w: 12, h: 350 },
+  { x: 850, y: 420, w: 12, h: MAP.height - 420 },
+];
+
+const FURNITURE = [
+  // Desks row 1
+  { type: "desk", x: 80,  y: 120, w: 90, h: 44 },
+  { type: "desk", x: 80,  y: 260, w: 90, h: 44 },
+  { type: "desk", x: 260, y: 120, w: 90, h: 44 },
+  { type: "desk", x: 260, y: 260, w: 90, h: 44 },
+  // Desks row 2
+  { type: "desk", x: 460, y: 120, w: 90, h: 44 },
+  { type: "desk", x: 460, y: 260, w: 90, h: 44 },
+  // Chairs
+  { type: "chair", x: 110, y: 170, w: 24, h: 24 },
+  { type: "chair", x: 110, y: 310, w: 24, h: 24 },
+  { type: "chair", x: 290, y: 170, w: 24, h: 24 },
+  { type: "chair", x: 290, y: 310, w: 24, h: 24 },
+  { type: "chair", x: 490, y: 170, w: 24, h: 24 },
+  { type: "chair", x: 490, y: 310, w: 24, h: 24 },
+  // Meeting room
+  { type: "table", x: 920, y: 120, w: 140, h: 80 },
+  { type: "chair", x: 940, y: 210, w: 24, h: 24 },
+  { type: "chair", x: 990, y: 210, w: 24, h: 24 },
+  { type: "chair", x: 1040, y: 210, w: 24, h: 24 },
+  { type: "chair", x: 940, y: 90, w: 24, h: 24 },
+  { type: "chair", x: 990, y: 90, w: 24, h: 24 },
+  { type: "chair", x: 1040, y: 90, w: 24, h: 24 },
+  // Whiteboard
+  { type: "whiteboard", x: 920, y: 20, w: 120, h: 12 },
+  // Kitchen area
+  { type: "coffee", x: 640, y: 24, w: 44, h: 36 },
+  { type: "counter", x: 700, y: 24, w: 80, h: 36 },
+  // Lounge area
+  { type: "couch", x: 100, y: 550, w: 130, h: 50 },
+  { type: "couch", x: 100, y: 660, w: 130, h: 50 },
+  { type: "table_small", x: 140, y: 615, w: 50, h: 32 },
+  // Plants
+  { type: "plant", x: 30, y: 30, w: 28, h: 28 },
+  { type: "plant", x: 790, y: 30, w: 28, h: 28 },
+  { type: "plant", x: 30, y: 740, w: 28, h: 28 },
+  { type: "plant", x: 1150, y: 30, w: 28, h: 28 },
+  { type: "plant", x: 1150, y: 740, w: 28, h: 28 },
+  { type: "plant", x: 840, y: 370, w: 28, h: 28 },
+  // Bookshelf
+  { type: "bookshelf", x: 920, y: 500, w: 80, h: 28 },
+  // Rug (no collision)
+  { type: "rug", x: 80, y: 530, w: 170, h: 200, noCollision: true },
+  // Rug in meeting room
+  { type: "rug", x: 900, y: 80, w: 180, h: 180, noCollision: true },
+  // Water cooler
+  { type: "watercooler", x: 750, y: 24, w: 24, h: 36 },
+  // Printer area
+  { type: "printer", x: 640, y: 260, w: 48, h: 36 },
+  // Big couch in meeting room
+  { type: "couch", x: 920, y: 450, w: 130, h: 40 },
+  // Bean bags
+  { type: "beanbag", x: 340, y: 580, w: 36, h: 36 },
+  { type: "beanbag", x: 400, y: 620, w: 36, h: 36 },
+];
+
+function drawFloor(ctx) {
+  for (let r = 0; r < MAP.height / MAP.tileSize; r++) {
+    for (let c = 0; c < MAP.width / MAP.tileSize; c++) {
+      ctx.fillStyle = (r + c) % 2 === 0 ? "#e8d5b7" : "#dcc8a9";
+      ctx.fillRect(c * MAP.tileSize, r * MAP.tileSize, MAP.tileSize, MAP.tileSize);
+    }
+  }
+  // Subtle grid
+  ctx.strokeStyle = "rgba(0,0,0,0.04)";
+  ctx.lineWidth = 0.5;
+  for (let r = 0; r <= MAP.height / MAP.tileSize; r++) {
+    ctx.beginPath();
+    ctx.moveTo(0, r * MAP.tileSize);
+    ctx.lineTo(MAP.width, r * MAP.tileSize);
+    ctx.stroke();
+  }
+  for (let c = 0; c <= MAP.width / MAP.tileSize; c++) {
+    ctx.beginPath();
+    ctx.moveTo(c * MAP.tileSize, 0);
+    ctx.lineTo(c * MAP.tileSize, MAP.height);
+    ctx.stroke();
+  }
+}
+
+function drawWalls(ctx) {
+  for (const w of WALLS) {
+    // Wall base
+    ctx.fillStyle = "#6b5b4f";
+    ctx.fillRect(w.x, w.y, w.w, w.h);
+    // Top highlight
+    ctx.fillStyle = "#8B7355";
+    ctx.fillRect(w.x, w.y, w.w, Math.min(3, w.h));
+    // Bottom shadow
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    ctx.fillRect(w.x, w.y + w.h - 2, w.w, 2);
+  }
+}
+
+function drawFurniture(ctx, item) {
+  const { type, x, y, w, h } = item;
+  switch (type) {
+    case "desk":
+      ctx.fillStyle = "#8B5E3C";
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#7a4f31";
+      ctx.fillRect(x, y + h - 4, w, 4);
+      // Legs
+      ctx.fillStyle = "#5a3a1f";
+      ctx.fillRect(x + 2, y + h, 4, 4);
+      ctx.fillRect(x + w - 6, y + h, 4, 4);
+      // Monitor
+      ctx.fillStyle = "#2c2c3e";
+      ctx.fillRect(x + w / 2 - 14, y + 4, 28, 20);
+      ctx.fillStyle = "#4a8bc2";
+      ctx.fillRect(x + w / 2 - 12, y + 6, 24, 15);
+      // Monitor stand
+      ctx.fillStyle = "#444";
+      ctx.fillRect(x + w / 2 - 3, y + 24, 6, 4);
+      ctx.fillRect(x + w / 2 - 8, y + 27, 16, 2);
+      // Keyboard
+      ctx.fillStyle = "#555";
+      ctx.fillRect(x + w / 2 - 16, y + 32, 32, 8);
+      break;
+
+    case "chair":
+      ctx.fillStyle = "#444";
+      ctx.fillRect(x + 4, y + 4, w - 8, h - 8);
+      ctx.fillStyle = "#3a3a4a";
+      ctx.fillRect(x + 2, y, w - 4, 4);
+      // Seat
+      ctx.fillStyle = "#555";
+      ctx.fillRect(x + 3, y + 3, w - 6, w - 6);
+      break;
+
+    case "table":
+      ctx.fillStyle = "#7a6a5a";
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#6a5a4a";
+      ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+      // Legs
+      ctx.fillStyle = "#5a4a3a";
+      ctx.fillRect(x + 4, y + h, 4, 4);
+      ctx.fillRect(x + w - 8, y + h, 4, 4);
+      ctx.fillRect(x + 4, y + h, 4, 4);
+      ctx.fillRect(x + w - 8, y + h, 4, 4);
+      break;
+
+    case "table_small":
+      ctx.fillStyle = "#7a6a5a";
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#6a5a4a";
+      ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+      break;
+
+    case "coffee":
+      ctx.fillStyle = "#3a3a3a";
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#4a4a4a";
+      ctx.fillRect(x + 2, y + 2, w - 4, 10);
+      // Coffee pot
+      ctx.fillStyle = "#666";
+      ctx.fillRect(x + 10, y + 16, 24, 16);
+      ctx.fillStyle = "#3a1a0a";
+      ctx.fillRect(x + 12, y + 18, 20, 12);
+      // Light
+      ctx.fillStyle = "#4f4";
+      ctx.fillRect(x + 4, y + 4, 4, 4);
+      break;
+
+    case "counter":
+      ctx.fillStyle = "#bbb";
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#999";
+      ctx.fillRect(x, y + h - 4, w, 4);
+      // Sink
+      ctx.fillStyle = "#888";
+      ctx.fillRect(x + 20, y + 8, 24, 16);
+      ctx.fillStyle = "#666";
+      ctx.fillRect(x + 22, y + 10, 20, 12);
+      // Faucet
+      ctx.fillStyle = "#aaa";
+      ctx.fillRect(x + 30, y + 4, 4, 6);
+      break;
+
+    case "couch":
+      // Back
+      ctx.fillStyle = "#5a4a7a";
+      ctx.fillRect(x, y, w, 12);
+      // Seat
+      ctx.fillStyle = "#6a5a8a";
+      ctx.fillRect(x, y + 10, w, h - 10);
+      // Arms
+      ctx.fillStyle = "#5a4a7a";
+      ctx.fillRect(x, y + 8, 12, h - 8);
+      ctx.fillRect(x + w - 12, y + 8, 12, h - 8);
+      // Cushion lines
+      ctx.strokeStyle = "rgba(0,0,0,0.1)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + w / 3, y + 14);
+      ctx.lineTo(x + w / 3, y + h - 4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + (w * 2) / 3, y + 14);
+      ctx.lineTo(x + (w * 2) / 3, y + h - 4);
+      ctx.stroke();
+      break;
+
+    case "plant":
+      // Pot
+      ctx.fillStyle = "#b5651d";
+      ctx.fillRect(x + 6, y + 14, 16, 14);
+      ctx.fillStyle = "#a0551a";
+      ctx.fillRect(x + 4, y + 12, 20, 4);
+      // Leaves
+      ctx.fillStyle = "#4a7c59";
+      ctx.beginPath(); ctx.arc(x + 14, y + 6, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#5a9c69";
+      ctx.beginPath(); ctx.arc(x + 10, y + 10, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 18, y + 10, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#6bae79";
+      ctx.beginPath(); ctx.arc(x + 14, y + 3, 5, 0, Math.PI * 2); ctx.fill();
+      break;
+
+    case "bookshelf":
+      ctx.fillStyle = "#6B4226";
+      ctx.fillRect(x, y, w, h);
+      // Shelves
+      ctx.fillStyle = "#5a3520";
+      ctx.fillRect(x, y + h / 3, w, 2);
+      ctx.fillRect(x, y + (h * 2) / 3, w, 2);
+      // Books (colored rectangles)
+      const bookColors = ["#d94a4a", "#4a90d9", "#4ad9a5", "#d9a54a", "#9b59b6", "#e67e22", "#1abc9c"];
+      for (let i = 0; i < 7; i++) {
+        ctx.fillStyle = bookColors[i];
+        ctx.fillRect(x + 4 + i * 10, y + 2, 8, h / 3 - 4);
+      }
+      for (let i = 0; i < 6; i++) {
+        ctx.fillStyle = bookColors[(i + 3) % 7];
+        ctx.fillRect(x + 4 + i * 12, y + h / 3 + 4, 10, h / 3 - 6);
+      }
+      break;
+
+    case "whiteboard":
+      ctx.fillStyle = "#ddd";
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = "#999";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+      // Some "writing"
+      ctx.strokeStyle = "#4a90d9";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 10, y + 4);
+      ctx.lineTo(x + 50, y + 4);
+      ctx.stroke();
+      ctx.strokeStyle = "#d94a4a";
+      ctx.beginPath();
+      ctx.moveTo(x + 10, y + 8);
+      ctx.lineTo(x + 40, y + 8);
+      ctx.stroke();
+      break;
+
+    case "rug":
+      ctx.fillStyle = "rgba(139, 90, 60, 0.2)";
+      roundRect(ctx, x, y, w, h, 8);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(139, 90, 60, 0.3)";
+      ctx.lineWidth = 2;
+      roundRect(ctx, x + 6, y + 6, w - 12, h - 12, 4);
+      ctx.stroke();
+      break;
+
+    case "watercooler":
+      ctx.fillStyle = "#aac8e8";
+      ctx.fillRect(x + 4, y, 16, 14);
+      ctx.fillStyle = "#88a8c8";
+      ctx.fillRect(x + 2, y + 14, 20, 22);
+      ctx.fillStyle = "#e44";
+      ctx.fillRect(x + 6, y + 20, 5, 4);
+      ctx.fillStyle = "#44e";
+      ctx.fillRect(x + 13, y + 20, 5, 4);
+      break;
+
+    case "printer":
+      ctx.fillStyle = "#ddd";
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#bbb";
+      ctx.fillRect(x + 4, y + 4, w - 8, 12);
+      ctx.fillStyle = "#888";
+      ctx.fillRect(x + 10, y + h - 8, w - 20, 6);
+      // Paper
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(x + 14, y + h - 12, w - 28, 6);
+      break;
+
+    case "beanbag":
+      ctx.fillStyle = "#e8a060";
+      ctx.beginPath();
+      ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(0,0,0,0.08)";
+      ctx.beginPath();
+      ctx.ellipse(x + w / 2 + 2, y + h / 2 + 2, w / 2.5, h / 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ─────────────────────────────────────────
+//  COLLISION
+// ─────────────────────────────────────────
+function checkCollision(px, py) {
+  const box = { x: px - 6, y: py + 16, w: 12, h: 12 };
+  for (const w of WALLS) {
+    if (aabb(box, w)) return true;
+  }
+  for (const f of FURNITURE) {
+    if (f.noCollision) continue;
+    if (aabb(box, f)) return true;
+  }
+  return false;
+}
+
+function aabb(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// ─────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────
+let socket;
+let currentRoomCode = "";
+let localPlayer = null;
+const remotePlayers = new Map();
+const activeReactions = [];
+const keys = {};
+let gameRunning = false;
+let selectedCharacter = 0;
+let lastTime = 0;
+let lastPositionSend = 0;
+
+const SPEED = 140;
+const POSITION_SEND_INTERVAL = 50;
+
+// ─────────────────────────────────────────
+//  ROOM CODE
+// ─────────────────────────────────────────
+function getRoomCode() {
+  const pathMatch = window.location.pathname.match(/\/room\/([a-zA-Z0-9_-]+)/);
+  if (pathMatch) return pathMatch[1];
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("room")) return params.get("room");
+  const code = Math.random().toString(36).substring(2, 8);
+  window.history.replaceState({}, "", "/room/" + code);
+  return code;
+}
+
+// ─────────────────────────────────────────
+//  ENTRY SCREEN
+// ─────────────────────────────────────────
+function setupEntryScreen() {
+  const container = document.getElementById("character-select");
+  CHARACTERS.forEach((ch, i) => {
+    const canvas = document.createElement("canvas");
+    canvas.className = "char-preview" + (i === 0 ? " selected" : "");
+    canvas.width = 60;
+    canvas.height = 72;
+    canvas.dataset.char = i;
+    container.appendChild(canvas);
+
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    drawCharacter(ctx, 30, 38, i, "down", ch.name, false, 0);
+
+    canvas.addEventListener("click", () => {
+      selectedCharacter = i;
+      document.querySelectorAll(".char-preview").forEach(c => c.classList.remove("selected"));
+      canvas.classList.add("selected");
+    });
+  });
+
+  document.getElementById("join-btn").addEventListener("click", joinRoom);
+  document.getElementById("name-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") joinRoom();
+  });
+}
+
+function joinRoom() {
+  const nameInput = document.getElementById("name-input");
+  const name = nameInput.value.trim();
+  if (!name) {
+    nameInput.focus();
+    nameInput.style.borderColor = "#e74c3c";
+    setTimeout(() => nameInput.style.borderColor = "", 1000);
+    return;
+  }
+
+  currentRoomCode = getRoomCode();
+
+  // Connect socket
+  socket = io();
+
+  socket.on("connect", () => {
+    socket.emit("join-room", {
+      roomCode: currentRoomCode,
+      name: name,
+      character: selectedCharacter,
+    });
+  });
+
+  socket.on("room-state", ({ players, selfId, roomCode }) => {
+    currentRoomCode = roomCode;
+    remotePlayers.clear();
+    for (const p of players) {
+      if (p.id === selfId) {
+        localPlayer = { ...p, isMoving: false };
+      } else {
+        remotePlayers.set(p.id, { ...p, targetX: p.x, targetY: p.y, isMoving: false });
+      }
+    }
+
+    // Show game
+    document.getElementById("entry-screen").style.display = "none";
+    document.getElementById("game-area").style.display = "block";
+    document.getElementById("chat-panel").style.display = "flex";
+    document.getElementById("overlay").style.display = "none";
+
+    updateHUD();
+    resizeCanvas();
+
+    if (!gameRunning) {
+      gameRunning = true;
+      requestAnimationFrame(gameLoop);
+    }
+  });
+
+  socket.on("player-joined", (player) => {
+    remotePlayers.set(player.id, { ...player, targetX: player.x, targetY: player.y, isMoving: false });
+    addSystemMessage(player.name + " joined the office");
+    updateHUD();
+  });
+
+  socket.on("player-moved", ({ id, x, y, direction }) => {
+    const p = remotePlayers.get(id);
+    if (!p) return;
+    p.targetX = x;
+    p.targetY = y;
+    p.direction = direction;
+  });
+
+  socket.on("player-left", ({ id }) => {
+    const p = remotePlayers.get(id);
+    if (p) {
+      addSystemMessage(p.name + " left the office");
+      remotePlayers.delete(id);
+      updateHUD();
+    }
+  });
+
+  socket.on("chat-message", ({ id, name: senderName, text, timestamp }) => {
+    addChatMessage(senderName, text, id === socket.id);
+  });
+
+  socket.on("emoji-reaction", ({ id, emoji }) => {
+    const player = id === socket.id ? localPlayer : remotePlayers.get(id);
+    if (!player) return;
+    activeReactions.push({
+      playerId: id,
+      emoji,
+      startTime: Date.now(),
+      x: player.x,
+      y: player.y,
+    });
+  });
+
+  socket.on("disconnect", () => {
+    document.getElementById("overlay").style.display = "flex";
+    document.getElementById("overlay-text").textContent = "Reconnecting...";
+  });
+
+  socket.on("reconnect", () => {
+    socket.emit("join-room", {
+      roomCode: currentRoomCode,
+      name: name,
+      character: selectedCharacter,
+    });
+  });
+
+  // Show loading
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("overlay-text").textContent = "Joining...";
+}
+
+// ─────────────────────────────────────────
+//  CHAT
+// ─────────────────────────────────────────
+function addChatMessage(name, text, isSelf) {
+  const div = document.createElement("div");
+  div.className = "chat-msg";
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "chat-name";
+  nameSpan.textContent = name;
+  div.appendChild(nameSpan);
+  div.appendChild(document.createTextNode(": " + text));
+  document.getElementById("chat-messages").appendChild(div);
+  document.getElementById("chat-messages").scrollTop = 999999;
+}
+
+function addSystemMessage(text) {
+  const div = document.createElement("div");
+  div.className = "chat-msg system";
+  div.textContent = text;
+  document.getElementById("chat-messages").appendChild(div);
+  document.getElementById("chat-messages").scrollTop = 999999;
+}
+
+document.getElementById("chat-input").addEventListener("keydown", (e) => {
+  e.stopPropagation();
+  if (e.key === "Enter") {
+    const input = e.target;
+    const text = input.value.trim();
+    if (text && socket) {
+      socket.emit("chat-message", { text });
+      input.value = "";
+    }
+  }
+  if (e.key === "Escape") {
+    e.target.blur();
+  }
+});
+
+// ─────────────────────────────────────────
+//  EMOJI
+// ─────────────────────────────────────────
+document.querySelectorAll(".emoji-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (socket) {
+      socket.emit("emoji-reaction", { emoji: btn.dataset.emoji });
+    }
+  });
+});
+
+// ─────────────────────────────────────────
+//  HUD
+// ─────────────────────────────────────────
+function updateHUD() {
+  document.getElementById("hud-room").textContent = currentRoomCode;
+  document.getElementById("hud-players").textContent = (remotePlayers.size + 1) + " online";
+}
+
+document.getElementById("copy-link-btn").addEventListener("click", () => {
+  const url = window.location.origin + "/room/" + currentRoomCode;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById("copy-link-btn");
+    btn.textContent = "Copied!";
+    setTimeout(() => btn.textContent = "Copy Link", 1500);
+  });
+});
+
+// ─────────────────────────────────────────
+//  INPUT
+// ─────────────────────────────────────────
+window.addEventListener("keydown", (e) => {
+  if (document.activeElement === document.getElementById("chat-input")) return;
+  keys[e.key] = true;
+  // Press Enter to focus chat
+  if (e.key === "Enter" && gameRunning) {
+    document.getElementById("chat-input").focus();
+    e.preventDefault();
+  }
+});
+window.addEventListener("keyup", (e) => {
+  keys[e.key] = false;
+});
+
+function handleInput(dt) {
+  if (!localPlayer) return;
+  if (document.activeElement === document.getElementById("chat-input")) {
+    localPlayer.isMoving = false;
+    return;
+  }
+
+  let dx = 0, dy = 0;
+  const dist = SPEED * (dt / 1000);
+
+  if (keys["ArrowUp"] || keys["w"] || keys["W"]) dy -= dist;
+  if (keys["ArrowDown"] || keys["s"] || keys["S"]) dy += dist;
+  if (keys["ArrowLeft"] || keys["a"] || keys["A"]) dx -= dist;
+  if (keys["ArrowRight"] || keys["d"] || keys["D"]) dx += dist;
+
+  if (dx !== 0 && dy !== 0) {
+    dx *= 0.707;
+    dy *= 0.707;
+  }
+
+  if (dx === 0 && dy === 0) {
+    localPlayer.isMoving = false;
+    return;
+  }
+
+  // Set direction
+  if (Math.abs(dy) > Math.abs(dx)) {
+    localPlayer.direction = dy < 0 ? "up" : "down";
+  } else {
+    localPlayer.direction = dx < 0 ? "left" : "right";
+  }
+
+  localPlayer.isMoving = true;
+
+  // Try movement with sliding
+  const newX = localPlayer.x + dx;
+  if (!checkCollision(newX, localPlayer.y)) {
+    localPlayer.x = newX;
+  }
+  const newY = localPlayer.y + dy;
+  if (!checkCollision(localPlayer.x, newY)) {
+    localPlayer.y = newY;
+  }
+
+  // Clamp to map
+  localPlayer.x = Math.max(24, Math.min(MAP.width - 24, localPlayer.x));
+  localPlayer.y = Math.max(24, Math.min(MAP.height - 40, localPlayer.y));
+
+  // Send position throttled
+  const now = Date.now();
+  if (now - lastPositionSend >= POSITION_SEND_INTERVAL) {
+    lastPositionSend = now;
+    socket.emit("move", {
+      x: localPlayer.x,
+      y: localPlayer.y,
+      direction: localPlayer.direction,
+    });
+  }
+}
+
+// ─────────────────────────────────────────
+//  UPDATE
+// ─────────────────────────────────────────
+function update(dt) {
+  // Interpolate remote players
+  for (const [id, p] of remotePlayers) {
+    if (p.targetX !== undefined) {
+      const lerp = 0.18;
+      const oldX = p.x;
+      const oldY = p.y;
+      p.x += (p.targetX - p.x) * lerp;
+      p.y += (p.targetY - p.y) * lerp;
+      if (Math.abs(p.targetX - p.x) < 0.5) p.x = p.targetX;
+      if (Math.abs(p.targetY - p.y) < 0.5) p.y = p.targetY;
+      p.isMoving = Math.abs(p.x - oldX) > 0.1 || Math.abs(p.y - oldY) > 0.1;
+    }
+  }
+}
+
+// ─────────────────────────────────────────
+//  RENDER
+// ─────────────────────────────────────────
+function render() {
+  const canvas = document.getElementById("game-canvas");
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const logicalW = canvas.width / dpr;
+  const logicalH = canvas.height / dpr;
+  ctx.clearRect(0, 0, logicalW, logicalH);
+
+  if (!localPlayer) return;
+
+  // Camera (use logical pixels since ctx is scaled by dpr)
+  let camX = logicalW / 2 - localPlayer.x;
+  let camY = logicalH / 2 - localPlayer.y;
+  camX = Math.min(0, Math.max(logicalW - MAP.width, camX));
+  camY = Math.min(0, Math.max(logicalH - MAP.height, camY));
+
+  ctx.save();
+  ctx.translate(Math.floor(camX), Math.floor(camY));
+
+  // Floor
+  drawFloor(ctx);
+
+  // Rugs (below everything)
+  for (const f of FURNITURE) {
+    if (f.type === "rug") drawFurniture(ctx, f);
+  }
+
+  // Walls
+  drawWalls(ctx);
+
+  // Collect drawables for Y-sorting
+  const drawables = [];
+
+  for (const f of FURNITURE) {
+    if (f.type === "rug") continue;
+    drawables.push({ type: "furniture", data: f, sortY: f.y + f.h });
+  }
+
+  // Local player
+  drawables.push({
+    type: "player",
+    data: localPlayer,
+    isSelf: true,
+    sortY: localPlayer.y + 28,
+  });
+
+  // Remote players
+  for (const [id, p] of remotePlayers) {
+    drawables.push({
+      type: "player",
+      data: p,
+      isSelf: false,
+      sortY: p.y + 28,
+    });
+  }
+
+  drawables.sort((a, b) => a.sortY - b.sortY);
+
+  for (const d of drawables) {
+    if (d.type === "furniture") {
+      drawFurniture(ctx, d.data);
+    } else {
+      const bob = d.data.isMoving ? Math.sin(Date.now() / 120) * 2 : 0;
+      drawCharacter(ctx, d.data.x, d.data.y, d.data.character, d.data.direction, d.data.name, d.isSelf, bob);
+    }
+  }
+
+  // Emoji reactions
+  drawReactions(ctx);
+
+  ctx.restore();
+}
+
+function drawReactions(ctx) {
+  const now = Date.now();
+  const DURATION = 2000;
+  for (let i = activeReactions.length - 1; i >= 0; i--) {
+    const r = activeReactions[i];
+    const elapsed = now - r.startTime;
+    if (elapsed > DURATION) {
+      activeReactions.splice(i, 1);
+      continue;
+    }
+
+    // Track player
+    const player = r.playerId === (socket && socket.id) ? localPlayer : remotePlayers.get(r.playerId);
+    if (player) {
+      r.x = player.x;
+      r.y = player.y;
+    }
+
+    const progress = elapsed / DURATION;
+    const yOff = -30 - progress * 50;
+    const alpha = 1 - progress * progress;
+    const scale = 1 + Math.sin(progress * Math.PI * 0.7) * 0.3;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = Math.floor(22 * scale) + "px serif";
+    ctx.textAlign = "center";
+    ctx.fillText(r.emoji, r.x, r.y + yOff);
+    ctx.restore();
+  }
+}
+
+// ─────────────────────────────────────────
+//  GAME LOOP
+// ─────────────────────────────────────────
+function gameLoop(timestamp) {
+  const dt = timestamp - lastTime;
+  lastTime = timestamp;
+
+  if (dt < 200) { // Skip big dt gaps
+    handleInput(dt);
+    update(dt);
+  }
+  render();
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ─────────────────────────────────────────
+//  CANVAS RESIZE
+// ─────────────────────────────────────────
+function resizeCanvas() {
+  const canvas = document.getElementById("game-canvas");
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + "px";
+  canvas.style.height = rect.height + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.imageSmoothingEnabled = false;
+}
+
+window.addEventListener("resize", () => {
+  if (gameRunning) resizeCanvas();
+});
+
+// ─────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────
+setupEntryScreen();
+</script>
+</body>
+</html>
