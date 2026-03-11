@@ -150,7 +150,7 @@ body {
     <button class="emoji-btn" data-emoji="🔥">🔥</button>
     <button class="emoji-btn" data-emoji="❤️">❤️</button>
     <div id="throw-divider"></div>
-    <button class="emoji-btn" id="throw-btn" title="Throw paper ball (T)">📄</button>
+    <button class="emoji-btn" id="throw-btn" title="Throw someone! (T)">🤾</button>
   </div>
 </div>
 
@@ -761,14 +761,14 @@ let lastPositionSend = 0;
 let moveTarget = null; // {x, y} for click-to-move
 let currentCamX = 0, currentCamY = 0; // stored for click conversion
 let throwMode = false;
-const flyingObjects = []; // { fromX, fromY, toX, toY, startTime, throwerName }
-const hitEffects = []; // { x, y, startTime }
+const flyingPlayers = []; // { playerId, charIdx, name, fromX, fromY, toX, toY, startTime }
+const stunnedPlayers = new Map(); // playerId -> { startTime }
 
 const SPEED = 140;
 const POSITION_SEND_INTERVAL = 50;
 const BUBBLE_DURATION = 5000;
-const THROW_DURATION = 600; // ms for paper to fly
-const HIT_DURATION = 800;
+const THROW_FLY_DURATION = 500; // ms for player to fly
+const STUN_DURATION = 1200; // ms for sit-down-get-up animation
 
 // ═══════════════════════════════════════════
 //  NOTIFICATION SOUND (Web Audio API)
@@ -791,20 +791,45 @@ function playNotificationSound() {
   } catch (e) {}
 }
 
-function playThrowHitSound() {
+function playThrowSound() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Whoosh sound
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-    osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.15);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+    osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.2);
+  } catch (e) {}
+}
+
+function playLandSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Thud + comedic boing
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.connect(gain1); gain1.connect(audioCtx.destination);
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(120, audioCtx.currentTime);
+    osc1.frequency.setValueAtTime(80, audioCtx.currentTime + 0.05);
+    gain1.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    osc1.start(audioCtx.currentTime); osc1.stop(audioCtx.currentTime + 0.15);
+    // Boing
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.connect(gain2); gain2.connect(audioCtx.destination);
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(400, audioCtx.currentTime + 0.08);
+    osc2.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.25);
+    gain2.gain.setValueAtTime(0.08, audioCtx.currentTime + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    osc2.start(audioCtx.currentTime + 0.08); osc2.stop(audioCtx.currentTime + 0.3);
   } catch (e) {}
 }
 
@@ -933,10 +958,30 @@ function joinRoom() {
     if (player) activeReactions.push({ playerId: id, emoji, startTime: Date.now(), x: player.x, y: player.y });
   });
 
-  socket.on("throw-object", ({ id, fromX, fromY, toX, toY }) => {
-    if (id === socket.id) return; // already added locally
-    flyingObjects.push({ fromX, fromY, toX, toY, startTime: Date.now() });
-    setTimeout(() => checkThrowHit(toX, toY), THROW_DURATION);
+  socket.on("throw-object", ({ id, targetId, fromX, fromY, toX, toY }) => {
+    // Find target player info
+    const isMe = targetId === socket.id;
+    const target = isMe ? localPlayer : remotePlayers.get(targetId);
+    if (!target) return;
+
+    flyingPlayers.push({
+      playerId: targetId, charIdx: target.character, name: target.name,
+      fromX, fromY, toX, toY, startTime: Date.now()
+    });
+    playThrowSound();
+
+    setTimeout(() => {
+      stunnedPlayers.set(targetId, { startTime: Date.now() });
+      playLandSound();
+      if (isMe && localPlayer) {
+        // I got thrown! Move me to landing spot
+        localPlayer.x = toX; localPlayer.y = toY;
+        moveTarget = null; // cancel movement
+      } else {
+        const p = remotePlayers.get(targetId);
+        if (p) { p.x = toX; p.y = toY; p.targetX = toX; p.targetY = toY; }
+      }
+    }, THROW_FLY_DURATION);
   });
 
   socket.on("disconnect", () => {
@@ -993,7 +1038,7 @@ document.querySelectorAll(".emoji-btn").forEach(btn => {
 });
 
 // ═══════════════════════════════════════════
-//  THROW (Paper Ball)
+//  THROW (Throw a Player!)
 // ═══════════════════════════════════════════
 document.getElementById("throw-btn").addEventListener("click", () => {
   throwMode = !throwMode;
@@ -1001,81 +1046,90 @@ document.getElementById("throw-btn").addEventListener("click", () => {
   document.getElementById("game-area").style.cursor = throwMode ? "crosshair" : "pointer";
 });
 
-function throwPaperBall(toX, toY) {
-  if (!localPlayer || !socket) return;
-  const fromX = localPlayer.x;
-  const fromY = localPlayer.y;
-  socket.emit("throw-object", { fromX, fromY, toX, toY });
-  flyingObjects.push({ fromX, fromY, toX, toY, startTime: Date.now(), throwerName: localPlayer.name });
-  // Check if hit someone at landing
-  setTimeout(() => checkThrowHit(toX, toY), THROW_DURATION);
-}
-
-function checkThrowHit(lx, ly) {
+function findNearestPlayer(worldX, worldY) {
+  let closest = null, closestDist = 50; // max 50px pick range
   for (const [id, p] of remotePlayers) {
-    const dx = p.x - lx, dy = p.y - ly;
-    if (Math.sqrt(dx*dx + dy*dy) < 30) {
-      hitEffects.push({ x: p.x, y: p.y, startTime: Date.now() });
-      playThrowHitSound();
-      return;
-    }
+    const dx = p.x - worldX, dy = p.y - worldY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < closestDist) { closestDist = dist; closest = { id, player: p }; }
   }
-  // Check self hit
-  if (localPlayer) {
-    const dx = localPlayer.x - lx, dy = localPlayer.y - ly;
-    if (Math.sqrt(dx*dx + dy*dy) < 30) {
-      hitEffects.push({ x: localPlayer.x, y: localPlayer.y, startTime: Date.now() });
-      playThrowHitSound();
-    }
-  }
+  return closest;
 }
 
-function drawFlyingPaper(ctx, obj, now) {
+function throwPlayer(targetId, targetPlayer) {
+  if (!localPlayer || !socket) return;
+  // Throw direction: away from thrower
+  const dx = targetPlayer.x - localPlayer.x;
+  const dy = targetPlayer.y - localPlayer.y;
+  const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+  const throwDist = 150 + Math.random() * 50;
+  let toX = targetPlayer.x + (dx / dist) * throwDist;
+  let toY = targetPlayer.y + (dy / dist) * throwDist;
+  toX = Math.max(30, Math.min(MAP.width - 30, toX));
+  toY = Math.max(30, Math.min(MAP.height - 50, toY));
+  // Server broadcasts to everyone including self
+  socket.emit("throw-object", { targetId, fromX: targetPlayer.x, fromY: targetPlayer.y, toX, toY });
+}
+
+function drawFlyingPlayer(ctx, obj, now) {
   const elapsed = now - obj.startTime;
-  const t = Math.min(1, elapsed / THROW_DURATION);
-  // Current position with parabolic arc
+  const t = Math.min(1, elapsed / THROW_FLY_DURATION);
   const px = obj.fromX + (obj.toX - obj.fromX) * t;
-  const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 60; // arc height
-  const rotation = t * Math.PI * 4; // spin
+  const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 80; // high arc!
+  const rotation = t * Math.PI * 3; // tumble spin
 
   ctx.save();
   ctx.translate(px, py);
   ctx.rotate(rotation);
-  // Paper ball
-  ctx.fillStyle = "#f5f0e8";
-  ctx.beginPath();
-  ctx.moveTo(-5, -4); ctx.lineTo(4, -5); ctx.lineTo(5, 3); ctx.lineTo(-3, 5); ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = "rgba(0,0,0,0.15)"; ctx.lineWidth = 0.5; ctx.stroke();
-  // Crumple lines
-  ctx.strokeStyle = "rgba(0,0,0,0.1)";
-  ctx.beginPath(); ctx.moveTo(-2, -2); ctx.lineTo(2, 1); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(-1, 3); ctx.stroke();
+  ctx.scale(0.8, 0.8); // slightly smaller while flying
+  drawCharacter(ctx, 0, 0, obj.charIdx, "down", "", false, 0);
   ctx.restore();
 
   // Shadow on ground
-  const shadowAlpha = 0.15 * (1 - t * 0.5);
   const groundY = obj.fromY + (obj.toY - obj.fromY) * t;
-  ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+  const shadowScale = 1 - Math.sin(t * Math.PI) * 0.5;
+  ctx.fillStyle = "rgba(0,0,0,0.15)";
   ctx.beginPath();
-  ctx.ellipse(px, groundY + 28, 4, 2, 0, 0, Math.PI * 2);
+  ctx.ellipse(px, groundY + 28, 10 * shadowScale, 3 * shadowScale, 0, 0, Math.PI * 2);
   ctx.fill();
 }
 
-function drawHitEffect(ctx, effect, now) {
-  const elapsed = now - effect.startTime;
-  const t = elapsed / HIT_DURATION;
-  if (t > 1) return;
-  ctx.save();
-  ctx.globalAlpha = 1 - t;
-  // Star burst
-  const scale = 0.5 + t * 1.5;
-  ctx.translate(effect.x, effect.y - 10);
-  ctx.scale(scale, scale);
-  ctx.font = "16px serif";
-  ctx.textAlign = "center";
-  ctx.fillText("💥", 0, 0);
-  ctx.restore();
+function getStunScale(playerId) {
+  const stun = stunnedPlayers.get(playerId);
+  if (!stun) return { scaleX: 1, scaleY: 1, offsetY: 0 };
+  const elapsed = Date.now() - stun.startTime;
+  if (elapsed > STUN_DURATION) { stunnedPlayers.delete(playerId); return { scaleX: 1, scaleY: 1, offsetY: 0 }; }
+  const t = elapsed / STUN_DURATION;
+  // Phase 1 (0~0.25): squash down (land impact)
+  // Phase 2 (0.25~0.5): stay squashed
+  // Phase 3 (0.5~0.8): stretch up (bounce)
+  // Phase 4 (0.8~1.0): return to normal
+  let scaleX = 1, scaleY = 1, offsetY = 0;
+  if (t < 0.25) {
+    const p = t / 0.25;
+    scaleY = 1 - p * 0.55; // squash to 45% height
+    scaleX = 1 + p * 0.3;  // widen
+    offsetY = p * 12;
+  } else if (t < 0.5) {
+    scaleY = 0.45;
+    scaleX = 1.3;
+    offsetY = 12;
+  } else if (t < 0.8) {
+    const p = (t - 0.5) / 0.3;
+    scaleY = 0.45 + p * 0.65; // stretch back up (slight overshoot)
+    scaleX = 1.3 - p * 0.35;
+    offsetY = 12 - p * 14;
+  } else {
+    const p = (t - 0.8) / 0.2;
+    scaleY = 1.1 - p * 0.1; // settle to normal
+    scaleX = 0.95 + p * 0.05;
+    offsetY = -2 + p * 2;
+  }
+  return { scaleX, scaleY, offsetY };
+}
+
+function isPlayerFlying(playerId) {
+  return flyingPlayers.some(f => f.playerId === playerId);
 }
 
 // ═══════════════════════════════════════════
@@ -1120,7 +1174,10 @@ document.getElementById("game-canvas").addEventListener("click", (e) => {
   const worldY = clickY - currentCamY;
 
   if (throwMode) {
-    throwPaperBall(worldX, worldY);
+    const target = findNearestPlayer(worldX, worldY);
+    if (target && !isPlayerFlying(target.id) && !stunnedPlayers.has(target.id)) {
+      throwPlayer(target.id, target.player);
+    }
     throwMode = false;
     document.getElementById("throw-btn").classList.remove("throw-active");
     document.getElementById("game-area").style.cursor = "pointer";
@@ -1254,8 +1311,32 @@ function render() {
     if (d.type === "f") {
       drawFurniture(ctx, d.data);
     } else {
+      // Skip drawing if player is mid-air (being thrown)
+      if (isPlayerFlying(d.data.id)) continue;
+
       const bob = d.data.isMoving ? Math.sin(now / 120) * 2 : 0;
-      drawCharacter(ctx, d.data.x, d.data.y, d.data.character, d.data.direction, d.data.name, d.isSelf, bob);
+      const stun = getStunScale(d.data.id);
+
+      if (stun.scaleX !== 1 || stun.scaleY !== 1) {
+        ctx.save();
+        ctx.translate(d.data.x, d.data.y + 28); // pivot at feet
+        ctx.scale(stun.scaleX, stun.scaleY);
+        ctx.translate(-d.data.x, -(d.data.y + 28));
+        drawCharacter(ctx, d.data.x, d.data.y + stun.offsetY, d.data.character, d.data.direction, d.data.name, d.isSelf, 0);
+        // Stars above head when stunned
+        if (stun.scaleY < 0.8) {
+          const starPhase = now / 200;
+          ctx.font = "10px serif"; ctx.textAlign = "center";
+          for (let s = 0; s < 3; s++) {
+            const sx = d.data.x + Math.cos(starPhase + s * 2.1) * 16;
+            const sy = d.data.y - 26 + Math.sin(starPhase * 1.3 + s * 1.5) * 4;
+            ctx.fillText("⭐", sx, sy);
+          }
+        }
+        ctx.restore();
+      } else {
+        drawCharacter(ctx, d.data.x, d.data.y, d.data.character, d.data.direction, d.data.name, d.isSelf, bob);
+      }
       // Speech bubble
       const bubble = chatBubbles.get(d.data.id);
       if (bubble && now - bubble.startTime < BUBBLE_DURATION) {
@@ -1285,18 +1366,11 @@ function render() {
     ctx.restore();
   }
 
-  // Flying paper balls
-  for (let i = flyingObjects.length - 1; i >= 0; i--) {
-    const obj = flyingObjects[i];
-    if (now - obj.startTime > THROW_DURATION) { flyingObjects.splice(i, 1); continue; }
-    drawFlyingPaper(ctx, obj, now);
-  }
-
-  // Hit effects
-  for (let i = hitEffects.length - 1; i >= 0; i--) {
-    const eff = hitEffects[i];
-    if (now - eff.startTime > HIT_DURATION) { hitEffects.splice(i, 1); continue; }
-    drawHitEffect(ctx, eff, now);
+  // Flying players (thrown characters tumbling through the air)
+  for (let i = flyingPlayers.length - 1; i >= 0; i--) {
+    const obj = flyingPlayers[i];
+    if (now - obj.startTime > THROW_FLY_DURATION) { flyingPlayers.splice(i, 1); continue; }
+    drawFlyingPlayer(ctx, obj, now);
   }
 
   ctx.restore();

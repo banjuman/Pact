@@ -102,10 +102,11 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("throw-object", ({ fromX, fromY, toX, toY }) => {
+  socket.on("throw-object", ({ targetId, fromX, fromY, toX, toY }) => {
     if (!currentRoom || !currentPlayer) return;
-    socket.to(currentRoom).emit("throw-object", {
+    io.to(currentRoom).emit("throw-object", {
       id: socket.id,
+      targetId: String(targetId || ""),
       fromX: Number(fromX) || 0,
       fromY: Number(fromY) || 0,
       toX: Number(toX) || 0,
