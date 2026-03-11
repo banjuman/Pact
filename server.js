@@ -107,16 +107,18 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("throw-prop", ({ propId, propType, fromX, fromY, toX, toY }) => {
+  socket.on("throw-prop", ({ propId, propType, fromX, fromY, toX, toY, furnW, furnH }) => {
     if (!currentRoom || !currentPlayer) return;
     io.to(currentRoom).emit("throw-prop", {
       id: socket.id,
-      propId: String(propId || ""),
-      propType: String(propType || "mug"),
+      propId: propId ? String(propId) : null,
+      propType: String(propType || "office_chair"),
       fromX: Number(fromX) || 0,
       fromY: Number(fromY) || 0,
       toX: Number(toX) || 0,
       toY: Number(toY) || 0,
+      furnW: Number(furnW) || 40,
+      furnH: Number(furnH) || 30,
     });
   });
 

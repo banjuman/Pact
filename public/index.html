@@ -510,45 +510,8 @@ const FURNITURE = [
   { type: "rug", x: 1340, y: 560, w: 180, h: 120, noCollision: true },
 ];
 
-// Throwable props (big visible items: monitors, chairs, beanbags, etc.)
-const THROWABLE_PROPS = [
-  // ── Workspace: monitors on desks & loose chairs ──
-  { id: "mon1", type: "monitor", x: 110, y: 75 },
-  { id: "mon2", type: "monitor", x: 330, y: 75 },
-  { id: "mon3", type: "monitor", x: 550, y: 75 },
-  { id: "mon4", type: "monitor", x: 110, y: 215 },
-  { id: "mon5", type: "monitor", x: 330, y: 355 },
-  { id: "mon6", type: "monitor", x: 725, y: 95 },
-  { id: "chr1", type: "chair", x: 200, y: 148 },
-  { id: "chr2", type: "chair", x: 420, y: 288 },
-  { id: "chr3", type: "chair", x: 640, y: 148 },
-  // ── Meeting Room ──
-  { id: "chr4", type: "chair", x: 955, y: 170 },
-  { id: "chr5", type: "chair", x: 1145, y: 230 },
-  // ── Kitchen: stools & mugs ──
-  { id: "stl1", type: "stool", x: 170, y: 718 },
-  { id: "stl2", type: "stool", x: 205, y: 718 },
-  { id: "stl3", type: "stool", x: 170, y: 868 },
-  { id: "stl4", type: "stool", x: 205, y: 868 },
-  { id: "mug1", type: "mug",   x: 80,  y: 558 },
-  { id: "mug2", type: "mug",   x: 150, y: 558 },
-  // ── Lounge: beanbags, cushions, ball ──
-  { id: "bn1",  type: "beanbag", x: 780, y: 800 },
-  { id: "bn2",  type: "beanbag", x: 850, y: 840 },
-  { id: "bn3",  type: "beanbag", x: 920, y: 800 },
-  { id: "csh1", type: "cushion", x: 560, y: 610 },
-  { id: "csh2", type: "cushion", x: 630, y: 610 },
-  { id: "csh3", type: "cushion", x: 560, y: 770 },
-  { id: "csh4", type: "cushion", x: 630, y: 770 },
-  { id: "ball1", type: "ball",  x: 830, y: 700 },
-  // ── Rest / Nap Room: pillows & books ──
-  { id: "pil1", type: "pillow", x: 1210, y: 615 },
-  { id: "pil2", type: "pillow", x: 1410, y: 615 },
-  { id: "pil3", type: "pillow", x: 1210, y: 755 },
-  { id: "pil4", type: "pillow", x: 1410, y: 755 },
-  { id: "book1", type: "book",  x: 1185, y: 895 },
-  { id: "book2", type: "book",  x: 1385, y: 895 },
-];
+// All furniture is throwable — originals stay in place, copies fly
+const FURN_NO_THROW = new Set(["rug"]); // skip rugs
 
 // ═══════════════════════════════════════════
 //  RENDERING HELPERS
@@ -765,52 +728,7 @@ function drawFurniture(ctx, item) {
   }
 }
 
-function drawProp(ctx, prop) {
-  const { type, x, y } = prop;
-  switch (type) {
-    case "monitor":
-      ctx.fillStyle = "#222"; ctx.fillRect(x - 14, y - 11, 28, 20);
-      ctx.fillStyle = "#3a7bd5"; ctx.fillRect(x - 12, y - 9, 24, 16);
-      ctx.fillStyle = "#444"; ctx.fillRect(x - 2, y + 9, 4, 3);
-      ctx.fillRect(x - 8, y + 11, 16, 2);
-      break;
-    case "chair":
-      ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#444"; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
-      break;
-    case "stool":
-      ctx.fillStyle = "#666"; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#777"; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
-      break;
-    case "beanbag":
-      ctx.fillStyle = "#e8a060"; ctx.beginPath(); ctx.ellipse(x, y, 18, 14, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "rgba(0,0,0,0.08)"; ctx.beginPath(); ctx.ellipse(x + 2, y + 2, 12, 9, 0, 0, Math.PI * 2); ctx.fill();
-      break;
-    case "mug":
-      ctx.fillStyle = "#f5f0e8"; ctx.fillRect(x - 5, y - 7, 10, 10);
-      ctx.fillStyle = "#d4c8b8"; ctx.fillRect(x + 4, y - 5, 4, 5);
-      ctx.fillStyle = "#6d4c1a"; ctx.fillRect(x - 4, y - 6, 8, 3);
-      break;
-    case "cushion":
-      ctx.fillStyle = "#e8a060"; roundRect(ctx, x - 9, y - 9, 18, 18, 4); ctx.fill();
-      ctx.fillStyle = "#d08030"; roundRect(ctx, x - 7, y - 7, 14, 14, 3); ctx.fill();
-      break;
-    case "ball":
-      ctx.fillStyle = "#ff9800"; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#ffb74d"; ctx.beginPath(); ctx.arc(x - 1, y - 1, 3, 0, Math.PI * 2); ctx.fill();
-      break;
-    case "pillow":
-      ctx.fillStyle = "#e8e5e0"; roundRect(ctx, x - 10, y - 7, 20, 14, 5); ctx.fill();
-      ctx.fillStyle = "#d5d0c8"; roundRect(ctx, x - 8, y - 5, 16, 10, 4); ctx.fill();
-      break;
-    case "book":
-      ctx.fillStyle = "#c0392b"; ctx.fillRect(x - 8, y - 5, 16, 10);
-      ctx.fillStyle = "#e74c3c"; ctx.fillRect(x - 7, y - 4, 14, 8);
-      ctx.fillStyle = "#fff"; ctx.fillRect(x - 5, y - 2, 10, 1);
-      break;
-  }
-}
+// (drawProp removed — all throwable items are now furniture)
 
 // ═══════════════════════════════════════════
 //  COLLISION + A* PATHFINDING
@@ -1094,15 +1012,22 @@ function updateAura(playerId, emoji, px, py, dt) {
       }
       break;
     }
-    case "🔥": { // 불의 화신 — lighter fire outline
-      const fc = ["#fff176","#ffee58","#ffca28","#ffa726","#ff7043","#f44336","#d32f2f"];
+    case "🔥": { // 초사이언 — DBZ power-up body-hugging flame
+      // Inner white-hot core flames (tight to body)
+      for (let i = 0; i < 3; i++) {
+        const bp = bodyPoint(px, py);
+        parts.push({ x:bp.x, y:bp.y, vx:(bp.x-px)*0.6+(Math.random()-0.5)*5, vy:-55-Math.random()*35, life:0.12+Math.random()*0.12, ml:0.24, color:Math.random()>0.3?"#fff":"#fff9c4", size:2+Math.random()*2, t:"flame", gy:-65 });
+      }
+      // Outer aura flames (orange/red contour)
       for (let i = 0; i < 4; i++) {
         const bp = bodyPoint(px, py);
-        parts.push({ x:bp.x, y:bp.y, vx:(Math.random()-0.5)*12+(bp.x-px)*0.5, vy:-35-Math.random()*30, life:0.2+Math.random()*0.3, ml:0.5, color:fc[Math.floor(Math.random()*fc.length)], size:1.8+Math.random()*2.5, t:"flame", gy:-30 });
+        const drift = (bp.x - px) * 0.8;
+        parts.push({ x:bp.x, y:bp.y, vx:drift+(Math.random()-0.5)*8, vy:-45-Math.random()*30, life:0.18+Math.random()*0.2, ml:0.38, color:["#ffca28","#ffa726","#ff7043","#f44336"][Math.floor(Math.random()*4)], size:2.5+Math.random()*3, t:"flame", gy:-50 });
       }
-      for (let i = 0; i < 2; i++) {
-        const ox = (Math.random()-0.5)*12;
-        parts.push({ x:px+ox, y:py+22+Math.random()*4, vx:ox*1.2, vy:-50-Math.random()*25, life:0.15+Math.random()*0.2, ml:0.35, color:Math.random()>0.5?"#ffca28":"#fff176", size:2+Math.random()*2, t:"flame", gy:-35 });
+      // Rising heat streaks from base
+      if (Math.random()<0.4) {
+        const ox = (Math.random()-0.5)*14;
+        parts.push({ x:px+ox, y:py+26, vx:ox*0.3, vy:-80-Math.random()*30, life:0.1+Math.random()*0.1, ml:0.2, color:"#fff176", size:1.5+Math.random(), t:"streak", gy:0 });
       }
       break;
     }
@@ -1155,12 +1080,29 @@ function drawAura(ctx, playerId, emoji, px, py) {
   // Base glow per type
   if (emoji === "😀") {
     const g = ctx.createRadialGradient(px,py+5,4,px,py+5,22);
-    g.addColorStop(0,"rgba(255,215,0,0.12)"); g.addColorStop(1,"rgba(255,215,0,0)");
+    g.addColorStop(0,"rgba(255,215,0,0.1)"); g.addColorStop(1,"rgba(255,215,0,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py+5,22,0,Math.PI*2); ctx.fill();
+    // Crazy golden eyes overlay on face
+    const bobY = Math.sin(Date.now()/250) * 1.5;
+    ctx.save();
+    ctx.shadowColor = "#FFD700"; ctx.shadowBlur = 5;
+    ctx.fillStyle = "#FFD700";
+    ctx.beginPath(); ctx.arc(px-4, py-5+bobY, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px+4, py-5+bobY, 2.5, 0, Math.PI*2); ctx.fill();
+    // Wide maniacal grin
+    ctx.strokeStyle = "#FFD700"; ctx.lineWidth = 1.5; ctx.shadowBlur = 4;
+    ctx.beginPath(); ctx.arc(px, py+bobY, 6, 0.15*Math.PI, 0.85*Math.PI); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
   } else if (emoji === "🔥") {
-    const g = ctx.createRadialGradient(px,py+5,4,px,py-3,28);
-    g.addColorStop(0,"rgba(255,100,0,0.18)"); g.addColorStop(0.5,"rgba(255,60,0,0.08)"); g.addColorStop(1,"rgba(255,0,0,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py,28,0,Math.PI*2); ctx.fill();
+    // Outer orange aura
+    const g1 = ctx.createRadialGradient(px,py+2,6,px,py-8,36);
+    g1.addColorStop(0,"rgba(255,140,0,0.22)"); g1.addColorStop(0.5,"rgba(255,80,0,0.1)"); g1.addColorStop(1,"rgba(255,30,0,0)");
+    ctx.fillStyle = g1; ctx.beginPath(); ctx.arc(px,py-2,36,0,Math.PI*2); ctx.fill();
+    // Inner white-hot body glow
+    const g2 = ctx.createRadialGradient(px,py+5,3,px,py+5,16);
+    g2.addColorStop(0,"rgba(255,255,220,0.2)"); g2.addColorStop(1,"rgba(255,200,80,0)");
+    ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(px,py+5,16,0,Math.PI*2); ctx.fill();
   } else if (emoji === "❤️") {
     const g = ctx.createRadialGradient(px,py+5,4,px,py+5,24);
     g.addColorStop(0,"rgba(255,64,129,0.12)"); g.addColorStop(1,"rgba(255,64,129,0)");
@@ -1334,8 +1276,8 @@ function joinRoom() {
     }, THROW_FLY_DURATION);
   });
 
-  socket.on("throw-prop", ({ id, propId, propType, fromX, fromY, toX, toY }) => {
-    flyingProps.push({ propId, propType, fromX, fromY, toX, toY, startTime: Date.now(), throwerId: id });
+  socket.on("throw-prop", ({ id, propId, propType, fromX, fromY, toX, toY, furnW, furnH }) => {
+    flyingProps.push({ propId, propType, fromX, fromY, toX, toY, startTime: Date.now(), throwerId: id, furnW: furnW || 40, furnH: furnH || 30 });
     playThrowSound();
   });
 
@@ -1407,11 +1349,15 @@ function getNearbyThrowables() {
     if (dist < THROW_RANGE && !isPlayerFlying(id) && !stunnedPlayers.has(id))
       result.push({ type: "player", id, data: p, dist });
   }
-  for (const prop of THROWABLE_PROPS) {
-    const dx = prop.x - localPlayer.x, dy = prop.y - localPlayer.y;
+  // All furniture is throwable
+  for (let fi = 0; fi < FURNITURE.length; fi++) {
+    const f = FURNITURE[fi];
+    if (FURN_NO_THROW.has(f.type)) continue;
+    const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
+    const dx = cx - localPlayer.x, dy = cy - localPlayer.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
-    if (dist < INTERACT_RANGE)
-      result.push({ type: "prop", id: prop.id, data: prop, dist });
+    if (dist < INTERACT_RANGE + 30)
+      result.push({ type: "furniture", id: "f" + fi, data: { x: cx, y: cy, fx: f.x, fy: f.y, w: f.w, h: f.h, ftype: f.type }, dist });
   }
   return result;
 }
@@ -1437,18 +1383,18 @@ function throwPlayer(targetId, targetPlayer) {
   socket.emit("throw-object", { targetId, fromX: targetPlayer.x, fromY: targetPlayer.y, toX, toY });
 }
 
-function throwPropItem(prop) {
+function throwFurniture(fdata) {
   if (!localPlayer || !socket) return;
-  // Physical direction: prop flies AWAY from player (like pushing/throwing)
-  const dx = prop.x - localPlayer.x;
-  const dy = prop.y - localPlayer.y;
+  // Physical direction: furniture flies AWAY from player
+  const dx = fdata.x - localPlayer.x;
+  const dy = fdata.y - localPlayer.y;
   const dist = Math.sqrt(dx*dx + dy*dy) || 1;
   const throwDist = 150 + Math.random() * 80;
-  let targetX = prop.x + (dx / dist) * throwDist;
-  let targetY = prop.y + (dy / dist) * throwDist;
+  let targetX = fdata.x + (dx / dist) * throwDist;
+  let targetY = fdata.y + (dy / dist) * throwDist;
   targetX = Math.max(30, Math.min(MAP.width - 30, targetX));
   targetY = Math.max(30, Math.min(MAP.height - 50, targetY));
-  socket.emit("throw-prop", { propId: prop.id, propType: prop.type, fromX: prop.x, fromY: prop.y, toX: targetX, toY: targetY });
+  socket.emit("throw-prop", { propId: null, propType: fdata.ftype, fromX: fdata.x, fromY: fdata.y, toX: targetX, toY: targetY, furnW: fdata.w, furnH: fdata.h });
 }
 
 function drawFlyingPlayer(ctx, obj, now) {
@@ -1470,12 +1416,22 @@ function drawFlyingPlayer(ctx, obj, now) {
 function drawFlyingPropItem(ctx, obj, now) {
   const t = Math.min(1, (now - obj.startTime) / PROP_FLY_DURATION);
   const px = obj.fromX + (obj.toX - obj.fromX) * t;
-  const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 70;
+  const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 80;
   ctx.save();
   ctx.translate(px, py);
-  ctx.rotate(t * Math.PI * 4);
-  drawProp(ctx, { type: obj.propType, x: 0, y: 0 });
+  ctx.rotate(t * Math.PI * 3);
+  // Draw scaled-down furniture copy
+  const fw = obj.furnW || 40, fh = obj.furnH || 30;
+  const maxDim = Math.max(fw, fh);
+  const scale = Math.min(0.8, 50 / maxDim);
+  ctx.scale(scale, scale);
+  drawFurniture(ctx, { type: obj.propType, x: -fw/2, y: -fh/2, w: fw, h: fh });
   ctx.restore();
+  // Ground shadow
+  const groundY = obj.fromY + (obj.toY - obj.fromY) * t;
+  const ss = 1 - Math.sin(t * Math.PI) * 0.5;
+  ctx.fillStyle = "rgba(0,0,0,0.12)";
+  ctx.beginPath(); ctx.ellipse(px, groundY + 5, 12*ss, 4*ss, 0, 0, Math.PI*2); ctx.fill();
 }
 
 function getStunScale(playerId) {
@@ -1542,9 +1498,16 @@ document.getElementById("game-canvas").addEventListener("mousemove", (e) => {
   hoverTarget = null;
   const nearby = getNearbyThrowables();
   for (const item of nearby) {
-    const dx = item.data.x - worldX, dy = item.data.y - worldY;
-    const hitR = item.type === "player" ? 25 : 20;
-    if (Math.sqrt(dx*dx + dy*dy) < hitR) { hoverTarget = item; break; }
+    if (item.type === "player") {
+      const dx = item.data.x - worldX, dy = item.data.y - worldY;
+      if (Math.sqrt(dx*dx + dy*dy) < 25) { hoverTarget = item; break; }
+    } else if (item.type === "furniture") {
+      const m = 6;
+      if (worldX >= item.data.fx - m && worldX <= item.data.fx + item.data.w + m &&
+          worldY >= item.data.fy - m && worldY <= item.data.fy + item.data.h + m) {
+        hoverTarget = item; break;
+      }
+    }
   }
   document.getElementById("game-area").style.cursor = hoverTarget ? "grab" : "crosshair";
 });
@@ -1562,7 +1525,7 @@ document.getElementById("game-canvas").addEventListener("click", (e) => {
   if (throwMode) {
     if (hoverTarget) {
       if (hoverTarget.type === "player") throwPlayer(hoverTarget.id, hoverTarget.data);
-      else if (hoverTarget.type === "prop") throwPropItem(hoverTarget.data);
+      else if (hoverTarget.type === "furniture") throwFurniture(hoverTarget.data);
     }
     throwMode = false;
     hoverTarget = null;
@@ -1680,15 +1643,10 @@ function update(dt) {
     }
   }
 
-  // Check prop hits on landing + update prop position
+  // Check furniture hits on landing (originals stay in place)
   for (let i = flyingProps.length - 1; i >= 0; i--) {
     const fp = flyingProps[i];
     if (now - fp.startTime >= PROP_FLY_DURATION) {
-      // Move prop to landing position
-      if (fp.propId) {
-        const prop = THROWABLE_PROPS.find(p => p.id === fp.propId);
-        if (prop) { prop.x = fp.toX; prop.y = fp.toY; }
-      }
       // Check hit on any player near landing
       const hitCheck = (px, py, pid) => {
         const dx = px - fp.toX, dy = py - fp.toY;
@@ -1744,9 +1702,6 @@ function render() {
   drawFloor(ctx);
   for (const f of FURNITURE) { if (f.type === "rug") drawFurniture(ctx, f); }
   drawWalls(ctx);
-
-  // Draw throwable props
-  for (const prop of THROWABLE_PROPS) drawProp(ctx, prop);
 
   // Click target indicator
   if (moveTarget) {
@@ -1841,27 +1796,14 @@ function render() {
     }
   }
 
-  // Interaction indicators for throwable props
-  if (localPlayer && !throwMode) {
-    for (const prop of THROWABLE_PROPS) {
-      const dx = prop.x - localPlayer.x, dy = prop.y - localPlayer.y;
-      if (Math.sqrt(dx*dx + dy*dy) < INTERACT_RANGE) {
-        const pulse = 0.3 + Math.sin(now / 300) * 0.2;
-        ctx.font = "11px serif"; ctx.textAlign = "center"; ctx.globalAlpha = pulse;
-        ctx.fillText("👆", prop.x, prop.y - 16);
-        ctx.globalAlpha = 1;
-      }
-    }
-  }
-
-  // Throw mode: highlight nearby throwable props
+  // Throw mode: highlight nearby furniture
   if (throwMode) {
     for (const item of nearbyThrowables) {
-      if (item.type !== "prop") continue;
-      const isHov = hoverTarget && hoverTarget.type === "prop" && hoverTarget.id === item.id;
-      const pulse = isHov ? 0.7 + Math.sin(now / 150) * 0.3 : 0.3 + Math.sin(now / 300) * 0.2;
+      if (item.type !== "furniture") continue;
+      const isHov = hoverTarget && hoverTarget.type === "furniture" && hoverTarget.id === item.id;
+      const pulse = isHov ? 0.8 + Math.sin(now / 150) * 0.2 : 0.25 + Math.sin(now / 300) * 0.15;
       ctx.strokeStyle = `rgba(226,183,20,${pulse})`; ctx.lineWidth = isHov ? 2.5 : 1.5;
-      ctx.beginPath(); ctx.arc(item.data.x, item.data.y, 18, 0, Math.PI * 2); ctx.stroke();
+      roundRect(ctx, item.data.fx - 3, item.data.fy - 3, item.data.w + 6, item.data.h + 6, 4); ctx.stroke();
     }
   }
 
