@@ -14,6 +14,9 @@ app.get("/room/:roomCode", (req, res) => {
 });
 
 const rooms = new Map();
+const MAX_PLAYERS = 10;
+const MAX_MOVE_PER_TICK = 50; // max pixels per position update (anti-teleport, allows jumps)
+const MAP_W = 1600, MAP_H = 1000;
 
 const SPAWN_POINTS = [
   { x: 500, y: 490 },
@@ -32,16 +35,22 @@ io.on("connection", (socket) => {
 
   socket.on("join-room", ({ roomCode, name, character }) => {
     if (!roomCode || !name) return;
+    // Prevent duplicate join — 1 character per connection
+    if (currentPlayer) return;
     if (!rooms.has(roomCode)) rooms.set(roomCode, { players: new Map() });
     const room = rooms.get(roomCode);
-    const spawn = SPAWN_POINTS[room.players.size % SPAWN_POINTS.length];
+    // Room player limit
+    if (room.players.size >= MAX_PLAYERS) {
+      socket.emit("room-full");
+      return;
+    }
 
     currentPlayer = {
       id: socket.id,
       name: String(name).substring(0, 20),
       character: Math.max(0, Math.min(9, Number(character) || 0)),
-      x: spawn.x,
-      y: spawn.y,
+      x: SPAWN_POINTS[room.players.size % SPAWN_POINTS.length].x,
+      y: SPAWN_POINTS[room.players.size % SPAWN_POINTS.length].y,
       direction: "down",
       activeEmoji: null,
     };
@@ -60,9 +69,17 @@ io.on("connection", (socket) => {
 
   socket.on("move", ({ x, y, direction }) => {
     if (!currentRoom || !currentPlayer) return;
-    currentPlayer.x = Number(x) || 0;
-    currentPlayer.y = Number(y) || 0;
-    currentPlayer.direction = direction || "down";
+    const nx = Number(x) || 0, ny = Number(y) || 0;
+    // Clamp to map bounds
+    const cx = Math.max(0, Math.min(MAP_W, nx));
+    const cy = Math.max(0, Math.min(MAP_H, ny));
+    // Anti-teleport: reject if moved too far in one tick
+    const dx = cx - currentPlayer.x, dy = cy - currentPlayer.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > MAX_MOVE_PER_TICK) return; // ignore suspicious movement
+    currentPlayer.x = cx;
+    currentPlayer.y = cy;
+    currentPlayer.direction = ["up","down","left","right"].includes(direction) ? direction : "down";
     socket.to(currentRoom).emit("player-moved", {
       id: socket.id,
       x: currentPlayer.x,

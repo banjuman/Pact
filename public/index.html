@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Pact - Virtual Office</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -73,15 +73,27 @@ body {
 
 /* ── Chat Panel ── */
 #chat-panel {
-  width: 300px; background: rgba(15,15,30,0.95);
+  width: 300px; min-width: 200px; background: rgba(15,15,30,0.95);
   border-left: 1px solid rgba(255,255,255,0.08); display: none; flex-direction: column;
+  flex-shrink: 0;
 }
-#chat-header { padding: 16px 18px; font-weight: 700; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+#chat-header {
+  padding: 12px 14px; font-weight: 700; font-size: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.7);
+  display: flex; align-items: center; justify-content: space-between;
+}
+#chat-header-btns { display: flex; gap: 6px; }
+.chat-hdr-btn {
+  background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.5);
+  border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+}
+.chat-hdr-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
 #chat-messages { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
 #chat-messages::-webkit-scrollbar { width: 4px; }
 #chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 .chat-msg { font-size: 13px; line-height: 1.4; color: rgba(255,255,255,0.85); word-break: break-word; }
-.chat-msg .chat-name { font-weight: 700; color: #e2b714; }
+.chat-msg .chat-name { font-weight: 700; }
 .chat-msg.system { color: rgba(255,255,255,0.35); font-style: italic; font-size: 12px; }
 #chat-input-area { padding: 12px 14px; border-top: 1px solid rgba(255,255,255,0.08); }
 #chat-input {
@@ -91,6 +103,10 @@ body {
 }
 #chat-input:focus { border-color: rgba(255,255,255,0.25); }
 #chat-input::placeholder { color: rgba(255,255,255,0.25); }
+@media (max-width: 700px) {
+  #chat-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 260px; z-index: 10; }
+  #chat-panel.chat-hidden { display: none !important; }
+}
 
 /* ── Emoji Bar ── */
 #emoji-bar {
@@ -116,12 +132,24 @@ body {
 
 /* ── HUD ── */
 #hud {
-  position: absolute; top: 16px; left: 16px;
-  background: rgba(15,15,30,0.8); backdrop-filter: blur(10px);
-  padding: 12px 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08);
-  font-size: 13px; display: flex; gap: 14px; align-items: center;
+  position: absolute; top: 10px; left: 10px;
+  background: rgba(15,15,30,0.7); backdrop-filter: blur(8px);
+  padding: 5px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);
+  font-size: 12px; display: flex; gap: 6px; align-items: center;
+  pointer-events: none; z-index: 5;
 }
-#hud .player-count { color: rgba(255,255,255,0.6); font-weight: 500; }
+#hud-dot { width: 7px; height: 7px; border-radius: 50%; background: #e74c3c; flex-shrink: 0; }
+#hud-dot.online { background: #2ecc71; box-shadow: 0 0 6px rgba(46,204,113,0.5); }
+#hud .player-count { color: rgba(255,255,255,0.55); font-weight: 600; font-size: 11px; }
+/* ── Exit Button ── */
+#exit-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 5;
+  background: rgba(15,15,30,0.7); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
+  padding: 5px 12px; color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+#exit-btn:hover { background: rgba(231,76,60,0.3); color: #fff; border-color: rgba(231,76,60,0.4); }
 
 /* ── Overlay ── */
 #overlay {
@@ -147,8 +175,10 @@ body {
 <div id="game-area">
   <canvas id="game-canvas"></canvas>
   <div id="hud">
+    <span id="hud-dot"></span>
     <span class="player-count" id="hud-players"></span>
   </div>
+  <button id="exit-btn">✕ Exit</button>
   <div id="emoji-bar">
     <button class="emoji-btn" data-emoji="😀">😀</button>
     <button class="emoji-btn" data-emoji="🔥">🔥</button>
@@ -157,11 +187,12 @@ body {
     <button class="emoji-btn" data-emoji="⚡">⚡</button>
     <div id="throw-divider"></div>
     <button class="emoji-btn throw-disabled" id="throw-btn" title="Throw! (T)">🤾</button>
+    <button class="emoji-btn" id="vacuum-btn" title="Robot Vacuum (V)">🤖</button>
   </div>
 </div>
 
 <div id="chat-panel">
-  <div id="chat-header">Chat</div>
+  <div id="chat-header"><span>Chat</span><div id="chat-header-btns"><button class="chat-hdr-btn" id="chat-popup-btn" title="Pop out chat">⧉</button></div></div>
   <div id="chat-messages"></div>
   <div id="chat-input-area">
     <input id="chat-input" type="text" placeholder="Type a message... (Enter)" maxlength="500" autocomplete="off" />
@@ -890,6 +921,15 @@ var flyingProps = [];
 var flyingFurnSet = new Set(); // furniture indices currently in flight
 var wobblePlayers = new Map();
 var auraParticles = new Map();
+// Jump state
+var isJumping = false;
+var jumpStartTime = 0;
+var jumpFromX = 0, jumpFromY = 0;
+var jumpToX = 0, jumpToY = 0;
+var jumpDirX = 0, jumpDirY = 0; // direction at jump start
+// Original furniture positions for robot vacuum
+var FURNITURE_ORIG = null;
+var robotVacuum = null; // { active, startTime, targets[], currentIdx, x, y, phase }
 
 const SPEED = 150;
 const POSITION_SEND_INTERVAL = 50;
@@ -900,6 +940,9 @@ const PROP_FLY_DURATION = 600;
 const WOBBLE_DURATION = 500;
 const THROW_RANGE = 80;
 const INTERACT_RANGE = 80;
+const JUMP_DURATION = 350;
+const JUMP_DIST_MOVING = 80; // leap distance when moving
+const JUMP_HEIGHT = 30;
 
 // ═══════════════════════════════════════════
 //  SOUNDS (Web Audio API)
@@ -962,6 +1005,87 @@ function playHitSound() {
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
     osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.12);
   } catch (e) {}
+}
+
+function playJoinSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.08);
+    osc.frequency.setValueAtTime(784, audioCtx.currentTime + 0.16);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+    osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.35);
+  } catch (e) {}
+}
+
+// ═══════════════════════════════════════════
+//  NAME COLORS (random, non-overlapping)
+// ═══════════════════════════════════════════
+const NAME_COLORS = [
+  "#e2b714", "#4facfe", "#f093fb", "#2ecc71", "#e74c3c",
+  "#ff9800", "#00bcd4", "#ab47bc", "#ef5350", "#26c6da",
+];
+var playerColorMap = new Map();
+var usedColorIdx = 0;
+function getPlayerColor(playerId) {
+  if (playerColorMap.has(playerId)) return playerColorMap.get(playerId);
+  const color = NAME_COLORS[usedColorIdx % NAME_COLORS.length];
+  usedColorIdx++;
+  playerColorMap.set(playerId, color);
+  return color;
+}
+
+// ═══════════════════════════════════════════
+//  CHAT POPUP
+// ═══════════════════════════════════════════
+var chatPopupWindow = null;
+function openChatPopup() {
+  if (chatPopupWindow && !chatPopupWindow.closed) { chatPopupWindow.focus(); return; }
+  chatPopupWindow = window.open("", "PactChat", "width=360,height=600,resizable=yes");
+  if (!chatPopupWindow) return;
+  const doc = chatPopupWindow.document;
+  doc.write(`<!DOCTYPE html><html><head><title>Pact Chat</title><style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#1a1a2e;color:#fff;font-family:'Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;height:100vh}
+    #msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:5px}
+    #msgs::-webkit-scrollbar{width:4px}#msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
+    .m{font-size:13px;line-height:1.4;color:rgba(255,255,255,0.85);word-break:break-word}
+    .m .n{font-weight:700}
+    .m.s{color:rgba(255,255,255,0.35);font-style:italic;font-size:12px}
+    #iw{padding:10px;border-top:1px solid rgba(255,255,255,0.08)}
+    #inp{width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:#fff;font-size:13px;outline:none}
+    #inp:focus{border-color:rgba(255,255,255,0.25)}
+  </style></head><body><div id="msgs"></div><div id="iw"><input id="inp" placeholder="Type a message..." maxlength="500" autocomplete="off"/></div></body></html>`);
+  doc.close();
+  // Copy existing messages
+  const msgs = document.getElementById("chat-messages");
+  const popMsgs = doc.getElementById("msgs");
+  for (const child of msgs.children) { const cl = child.cloneNode(true); cl.className = child.classList.contains("system") ? "m s" : "m"; popMsgs.appendChild(cl); }
+  popMsgs.scrollTop = 999999;
+  // Input handler
+  doc.getElementById("inp").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.isComposing) {
+      const text = e.target.value.trim();
+      if (text && socket) { socket.emit("chat-message", { text }); e.target.value = ""; }
+    }
+  });
+  chatPopupWindow.addEventListener("beforeunload", () => { chatPopupWindow = null; });
+  // Hide main chat
+  document.getElementById("chat-panel").style.display = "none";
+}
+function pushToPopup(name, text, color, isSystem) {
+  if (!chatPopupWindow || chatPopupWindow.closed) return;
+  const doc = chatPopupWindow.document;
+  const msgs = doc.getElementById("msgs");
+  if (!msgs) return;
+  const div = doc.createElement("div"); div.className = isSystem ? "m s" : "m";
+  if (isSystem) { div.textContent = text; }
+  else { const n = doc.createElement("span"); n.className = "n"; n.style.color = color; n.textContent = name; div.appendChild(n); div.appendChild(doc.createTextNode(": " + text)); }
+  msgs.appendChild(div); msgs.scrollTop = 999999;
 }
 
 // ═══════════════════════════════════════════
@@ -1232,12 +1356,14 @@ function joinRoom() {
     document.getElementById("chat-panel").style.display = "flex";
     document.getElementById("overlay").style.display = "none";
     updateHUD(); resizeCanvas(); buildNavGrid();
+    // Save original furniture positions for robot vacuum
+    if (!FURNITURE_ORIG) FURNITURE_ORIG = FURNITURE.map(f => ({ x: f.x, y: f.y }));
     if (!gameRunning) { gameRunning = true; requestAnimationFrame(gameLoop); }
   });
 
   socket.on("player-joined", (player) => {
     remotePlayers.set(player.id, { ...player, targetX: player.x, targetY: player.y, isMoving: false });
-    addSystemMessage(player.name + " joined"); updateHUD();
+    addSystemMessage(player.name + " joined"); updateHUD(); playJoinSound();
   });
 
   socket.on("player-moved", ({ id, x, y, direction }) => {
@@ -1251,7 +1377,7 @@ function joinRoom() {
   });
 
   socket.on("chat-message", ({ id, name: sn, text }) => {
-    addChatMessage(sn, text, id === socket.id);
+    addChatMessage(id, sn, text, id === socket.id);
     chatBubbles.set(id, { text, startTime: Date.now() });
     if (id !== socket.id) playNotificationSound();
   });
@@ -1284,6 +1410,11 @@ function joinRoom() {
     playThrowSound();
   });
 
+  socket.on("room-full", () => {
+    document.getElementById("overlay").style.display = "flex";
+    document.getElementById("overlay-text").textContent = "Room is full (max 10 players)";
+  });
+
   socket.on("disconnect", () => {
     document.getElementById("overlay").style.display = "flex";
     document.getElementById("overlay-text").textContent = "Reconnecting...";
@@ -1300,17 +1431,20 @@ function joinRoom() {
 // ═══════════════════════════════════════════
 //  CHAT
 // ═══════════════════════════════════════════
-function addChatMessage(name, text, isSelf) {
+function addChatMessage(senderId, name, text, isSelf) {
+  const color = getPlayerColor(senderId);
   const div = document.createElement("div"); div.className = "chat-msg";
-  const nameSpan = document.createElement("span"); nameSpan.className = "chat-name"; nameSpan.textContent = name;
+  const nameSpan = document.createElement("span"); nameSpan.className = "chat-name"; nameSpan.style.color = color; nameSpan.textContent = name;
   div.appendChild(nameSpan); div.appendChild(document.createTextNode(": " + text));
   document.getElementById("chat-messages").appendChild(div);
   document.getElementById("chat-messages").scrollTop = 999999;
+  pushToPopup(name, text, color, false);
 }
 function addSystemMessage(text) {
   const div = document.createElement("div"); div.className = "chat-msg system"; div.textContent = text;
   document.getElementById("chat-messages").appendChild(div);
   document.getElementById("chat-messages").scrollTop = 999999;
+  pushToPopup("", text, "", true);
 }
 
 document.getElementById("chat-input").addEventListener("keydown", (e) => {
@@ -1469,7 +1603,10 @@ function isPlayerFlying(playerId) { return flyingPlayers.some(f => f.playerId ==
 //  HUD
 // ═══════════════════════════════════════════
 function updateHUD() {
-  document.getElementById("hud-players").textContent = (remotePlayers.size + 1) + " online";
+  const count = remotePlayers.size + 1;
+  document.getElementById("hud-players").textContent = count;
+  const dot = document.getElementById("hud-dot");
+  if (dot) dot.className = count > 0 ? "online" : "";
 }
 
 // ═══════════════════════════════════════════
@@ -1477,12 +1614,33 @@ function updateHUD() {
 // ═══════════════════════════════════════════
 window.addEventListener("keydown", (e) => {
   if (document.activeElement === document.getElementById("chat-input")) return;
-  keys[e.key] = true;
-  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","w","W","a","A","s","S","d","D"].includes(e.key)) {
+  keys[e.code] = true;
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","KeyW","KeyA","KeyS","KeyD"].includes(e.code)) {
     movePath = null; moveTarget = null;
   }
-  if (e.key === "Enter" && gameRunning) { document.getElementById("chat-input").focus(); e.preventDefault(); }
-  if ((e.key === "t" || e.key === "T") && gameRunning) {
+  if (e.code === "Enter" && gameRunning) { document.getElementById("chat-input").focus(); e.preventDefault(); }
+  if (e.code === "Space" && gameRunning && !isJumping) {
+    e.preventDefault();
+    isJumping = true; jumpStartTime = Date.now();
+    jumpFromX = localPlayer.x; jumpFromY = localPlayer.y;
+    // If moving, leap in movement direction
+    const moving = localPlayer.isMoving;
+    if (moving) {
+      const dir = localPlayer.direction;
+      jumpDirX = dir === "left" ? -1 : dir === "right" ? 1 : 0;
+      jumpDirY = dir === "up" ? -1 : dir === "down" ? 1 : 0;
+      jumpToX = jumpFromX + jumpDirX * JUMP_DIST_MOVING;
+      jumpToY = jumpFromY + jumpDirY * JUMP_DIST_MOVING;
+      jumpToX = Math.max(24, Math.min(MAP.width - 24, jumpToX));
+      jumpToY = Math.max(24, Math.min(MAP.height - 40, jumpToY));
+    } else {
+      jumpDirX = 0; jumpDirY = 0;
+      jumpToX = jumpFromX; jumpToY = jumpFromY;
+    }
+    // Broadcast jump
+    if (socket) socket.emit("move", { x: localPlayer.x, y: localPlayer.y, direction: localPlayer.direction });
+  }
+  if (e.code === "KeyT" && gameRunning) {
     const nearby = getNearbyThrowables();
     if (nearby.length === 0) return;
     throwMode = !throwMode;
@@ -1491,7 +1649,7 @@ window.addEventListener("keydown", (e) => {
     if (!throwMode) hoverTarget = null;
   }
 });
-window.addEventListener("keyup", (e) => { keys[e.key] = false; });
+window.addEventListener("keyup", (e) => { keys[e.code] = false; });
 
 // Mouse move for throw hover
 document.getElementById("game-canvas").addEventListener("mousemove", (e) => {
@@ -1556,15 +1714,31 @@ document.getElementById("game-canvas").addEventListener("click", (e) => {
 
 function handleInput(dt) {
   if (!localPlayer) return;
+  // Jump physics — override normal movement, skip collision (can hop over furniture)
+  if (isJumping) {
+    const elapsed = Date.now() - jumpStartTime;
+    const t = Math.min(1, elapsed / JUMP_DURATION);
+    localPlayer.x = jumpFromX + (jumpToX - jumpFromX) * t;
+    localPlayer.y = jumpFromY + (jumpToY - jumpFromY) * t;
+    localPlayer.jumpOffset = -Math.sin(t * Math.PI) * JUMP_HEIGHT;
+    if (t >= 1) {
+      isJumping = false; localPlayer.jumpOffset = 0;
+      localPlayer.x = jumpToX; localPlayer.y = jumpToY;
+      sendPosition();
+    }
+    return;
+  }
+  localPlayer.jumpOffset = 0;
+
   if (document.activeElement === document.getElementById("chat-input")) { localPlayer.isMoving = false; return; }
 
   let dx = 0, dy = 0;
   const dist = SPEED * (dt / 1000);
 
-  if (keys["ArrowUp"] || keys["w"] || keys["W"]) dy -= dist;
-  if (keys["ArrowDown"] || keys["s"] || keys["S"]) dy += dist;
-  if (keys["ArrowLeft"] || keys["a"] || keys["A"]) dx -= dist;
-  if (keys["ArrowRight"] || keys["d"] || keys["D"]) dx += dist;
+  if (keys["ArrowUp"] || keys["KeyW"]) dy -= dist;
+  if (keys["ArrowDown"] || keys["KeyS"]) dy += dist;
+  if (keys["ArrowLeft"] || keys["KeyA"]) dx -= dist;
+  if (keys["ArrowRight"] || keys["KeyD"]) dx += dist;
 
   if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
 
@@ -1666,16 +1840,32 @@ function update(dt) {
         flyingFurnSet.delete(fi);
         needNavRebuild = true;
       }
-      // Check hit on any player near landing
+      // Check hit on any player near landing — knockback in throw direction
+      const throwDx = fp.toX - fp.fromX, throwDy = fp.toY - fp.fromY;
+      const throwDist = Math.sqrt(throwDx*throwDx + throwDy*throwDy) || 1;
+      const knockDirX = throwDx / throwDist, knockDirY = throwDy / throwDist;
+      const knockDist = 60 + Math.random() * 40;
       const hitCheck = (px, py, pid) => {
         const dx = px - fp.toX, dy = py - fp.toY;
         return Math.sqrt(dx*dx + dy*dy) < 35 && pid !== fp.throwerId;
       };
       for (const [id, p] of remotePlayers) {
-        if (hitCheck(p.x, p.y, id)) { wobblePlayers.set(id, { startTime: now }); playHitSound(); break; }
+        if (hitCheck(p.x, p.y, id)) {
+          stunnedPlayers.set(id, { startTime: now });
+          const kx = Math.max(30, Math.min(MAP.width-30, p.x + knockDirX * knockDist));
+          const ky = Math.max(30, Math.min(MAP.height-50, p.y + knockDirY * knockDist));
+          flyingPlayers.push({ playerId: id, charIdx: p.character, name: p.name, fromX: p.x, fromY: p.y, toX: kx, toY: ky, startTime: now });
+          setTimeout(() => { const rp = remotePlayers.get(id); if (rp) { rp.x = kx; rp.y = ky; rp.targetX = kx; rp.targetY = ky; } }, THROW_FLY_DURATION);
+          playHitSound(); break;
+        }
       }
       if (localPlayer && socket && hitCheck(localPlayer.x, localPlayer.y, socket.id)) {
-        wobblePlayers.set(socket.id, { startTime: now }); playHitSound();
+        stunnedPlayers.set(socket.id, { startTime: now });
+        const kx = Math.max(30, Math.min(MAP.width-30, localPlayer.x + knockDirX * knockDist));
+        const ky = Math.max(30, Math.min(MAP.height-50, localPlayer.y + knockDirY * knockDist));
+        flyingPlayers.push({ playerId: socket.id, charIdx: localPlayer.character, name: localPlayer.name, fromX: localPlayer.x, fromY: localPlayer.y, toX: kx, toY: ky, startTime: now });
+        setTimeout(() => { if (localPlayer) { localPlayer.x = kx; localPlayer.y = ky; movePath = null; moveTarget = null; } }, THROW_FLY_DURATION);
+        playHitSound();
       }
       playLandSound();
       flyingProps.splice(i, 1);
@@ -1683,8 +1873,12 @@ function update(dt) {
   }
   if (needNavRebuild) buildNavGrid();
 
+  // Update robot vacuum
+  updateVacuum(now);
+
   // Update throw button state
-  const nearby = getNearbyThrowables();
+  const vacuumActive = robotVacuum && robotVacuum.active;
+  const nearby = vacuumActive ? [] : getNearbyThrowables();
   const throwBtn = document.getElementById("throw-btn");
   if (nearby.length > 0) {
     throwBtn.classList.remove("throw-disabled");
@@ -1756,33 +1950,40 @@ function render() {
     } else {
       if (isPlayerFlying(d.id)) continue;
 
+      const jOff = d.data.jumpOffset || 0;
       const bob = d.data.isMoving ? Math.sin(now / 120) * 2 : 0;
       const stun = getStunScale(d.id);
       const wobble = getWobbleAngle(d.id);
 
       if (stun.scaleX !== 1 || stun.scaleY !== 1) {
         ctx.save();
-        ctx.translate(d.data.x, d.data.y + 28);
+        ctx.translate(d.data.x, d.data.y + 28 + jOff);
         ctx.scale(stun.scaleX, stun.scaleY);
-        ctx.translate(-d.data.x, -(d.data.y + 28));
-        drawCharacter(ctx, d.data.x, d.data.y + stun.offsetY, d.data.character, d.data.direction, d.data.name, d.isSelf, 0);
+        ctx.translate(-d.data.x, -(d.data.y + 28 + jOff));
+        drawCharacter(ctx, d.data.x, d.data.y + stun.offsetY + jOff, d.data.character, d.data.direction, d.data.name, d.isSelf, 0);
         if (stun.scaleY < 0.8) {
           const sp = now / 200;
           ctx.font = "10px serif"; ctx.textAlign = "center";
           for (let s = 0; s < 3; s++) {
-            ctx.fillText("⭐", d.data.x + Math.cos(sp + s*2.1)*16, d.data.y - 26 + Math.sin(sp*1.3 + s*1.5)*4);
+            ctx.fillText("⭐", d.data.x + Math.cos(sp + s*2.1)*16, d.data.y + jOff - 26 + Math.sin(sp*1.3 + s*1.5)*4);
           }
         }
         ctx.restore();
       } else if (wobble !== 0) {
         ctx.save();
-        ctx.translate(d.data.x, d.data.y + 28);
+        ctx.translate(d.data.x, d.data.y + 28 + jOff);
         ctx.rotate(wobble);
-        ctx.translate(-d.data.x, -(d.data.y + 28));
-        drawCharacter(ctx, d.data.x, d.data.y, d.data.character, d.data.direction, d.data.name, d.isSelf, bob);
+        ctx.translate(-d.data.x, -(d.data.y + 28 + jOff));
+        drawCharacter(ctx, d.data.x, d.data.y + jOff, d.data.character, d.data.direction, d.data.name, d.isSelf, bob);
         ctx.restore();
       } else {
-        drawCharacter(ctx, d.data.x, d.data.y, d.data.character, d.data.direction, d.data.name, d.isSelf, bob);
+        drawCharacter(ctx, d.data.x, d.data.y + jOff, d.data.character, d.data.direction, d.data.name, d.isSelf, bob);
+      }
+      // Jump shadow
+      if (jOff < -2) {
+        const shadowScale = 1 + jOff / 60;
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
+        ctx.beginPath(); ctx.ellipse(d.data.x, d.data.y + 28, 11 * shadowScale, 4 * shadowScale, 0, 0, Math.PI * 2); ctx.fill();
       }
 
       // Aura effect
@@ -1840,6 +2041,9 @@ function render() {
     if (now - fp.startTime <= PROP_FLY_DURATION) drawFlyingPropItem(ctx, fp, now);
   }
 
+  // Robot vacuum
+  drawVacuum(ctx, now);
+
   ctx.restore();
 }
 
@@ -1866,6 +2070,143 @@ function resizeCanvas() {
   ctx.scale(dpr, dpr); ctx.imageSmoothingEnabled = false;
 }
 window.addEventListener("resize", () => { if (gameRunning) resizeCanvas(); });
+
+// ═══════════════════════════════════════════
+//  ROBOT VACUUM
+// ═══════════════════════════════════════════
+function startVacuum() {
+  if (robotVacuum && robotVacuum.active) return;
+  if (!FURNITURE_ORIG) return;
+  // Find all furniture that moved from original position
+  const targets = [];
+  for (let i = 0; i < FURNITURE.length; i++) {
+    if (FURNITURE[i].noCollision) continue; // skip rugs
+    const orig = FURNITURE_ORIG[i];
+    if (Math.abs(FURNITURE[i].x - orig.x) > 2 || Math.abs(FURNITURE[i].y - orig.y) > 2) {
+      targets.push(i);
+    }
+  }
+  if (targets.length === 0) {
+    addSystemMessage("Everything is already tidy! 🧹");
+    return;
+  }
+  // Start from center of map
+  robotVacuum = { active: true, startTime: Date.now(), targets, currentIdx: 0, x: MAP.width/2, y: MAP.height/2 + 50, phase: "moving", phaseStart: Date.now() };
+  addSystemMessage("🤖 Robot vacuum activated!");
+  document.getElementById("vacuum-btn").classList.add("emoji-active");
+}
+
+function updateVacuum(now) {
+  if (!robotVacuum || !robotVacuum.active) return;
+  const rv = robotVacuum;
+  const VACUUM_SPEED = 800; // pixels per second — very fast!
+  const dt = 16 / 1000; // ~60fps
+
+  if (rv.phase === "moving") {
+    // Move toward current target furniture
+    const fi = rv.targets[rv.currentIdx];
+    const tgtX = FURNITURE_ORIG[fi].x + FURNITURE[fi].w / 2;
+    const tgtY = FURNITURE_ORIG[fi].y + FURNITURE[fi].h / 2;
+    const dx = tgtX - rv.x, dy = tgtY - rv.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 10) {
+      rv.phase = "returning"; rv.phaseStart = now;
+      // Pick up the furniture — it teleports to vacuum position
+    } else {
+      rv.x += (dx / dist) * VACUUM_SPEED * dt;
+      rv.y += (dy / dist) * VACUUM_SPEED * dt;
+    }
+    // Also drag the furniture towards original position as vacuum approaches
+    const f = FURNITURE[fi]; const orig = FURNITURE_ORIG[fi];
+    const fdx = orig.x - f.x, fdy = orig.y - f.y;
+    const fdist = Math.sqrt(fdx*fdx + fdy*fdy);
+    if (fdist > 2) {
+      const speed = Math.min(VACUUM_SPEED * dt, fdist);
+      f.x += (fdx / fdist) * speed;
+      f.y += (fdy / fdist) * speed;
+    }
+  } else if (rv.phase === "returning") {
+    // Snap furniture to original
+    const fi = rv.targets[rv.currentIdx];
+    FURNITURE[fi].x = FURNITURE_ORIG[fi].x;
+    FURNITURE[fi].y = FURNITURE_ORIG[fi].y;
+    rv.currentIdx++;
+    if (rv.currentIdx >= rv.targets.length) {
+      // Done!
+      rv.active = false;
+      buildNavGrid();
+      addSystemMessage("🤖 취사가 완료되었습니다.");
+      document.getElementById("vacuum-btn").classList.remove("emoji-active");
+      return;
+    }
+    rv.phase = "moving"; rv.phaseStart = now;
+    buildNavGrid(); // rebuild as each piece returns
+  }
+}
+
+function drawVacuum(ctx, now) {
+  if (!robotVacuum || !robotVacuum.active) return;
+  const rv = robotVacuum;
+  // Draw robot vacuum body
+  ctx.save();
+  ctx.translate(rv.x, rv.y);
+  ctx.rotate(now / 300); // spinning
+  // Body circle
+  ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
+  // LED eye
+  ctx.fillStyle = "#4fc3f7"; ctx.beginPath(); ctx.arc(0, -5, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#81d4fa"; ctx.beginPath(); ctx.arc(0, -5, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // Shadow
+  ctx.fillStyle = "rgba(0,0,0,0.15)"; ctx.beginPath(); ctx.ellipse(rv.x, rv.y + 10, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+  // Progress text
+  const progress = Math.round((rv.currentIdx / rv.targets.length) * 100);
+  ctx.font = "bold 9px 'Segoe UI', system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "rgba(79,195,247,0.8)";
+  ctx.fillText(progress + "%", rv.x, rv.y - 20);
+}
+
+document.getElementById("vacuum-btn").addEventListener("click", startVacuum);
+
+// V key shortcut for vacuum
+window.addEventListener("keydown", (e) => {
+  if (document.activeElement === document.getElementById("chat-input")) return;
+  if (e.code === "KeyV" && gameRunning) startVacuum();
+});
+
+// ═══════════════════════════════════════════
+//  ZOOM PREVENTION
+// ═══════════════════════════════════════════
+document.addEventListener("wheel", (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && (e.key === "+" || e.key === "-" || e.key === "=" || e.key === "0")) e.preventDefault();
+});
+
+// ═══════════════════════════════════════════
+//  EXIT BUTTON
+// ═══════════════════════════════════════════
+document.getElementById("exit-btn").addEventListener("click", () => {
+  if (socket) { socket.disconnect(); socket = null; }
+  localPlayer = null; remotePlayers.clear(); chatBubbles.clear(); auraParticles.clear();
+  flyingPlayers = []; flyingProps = []; flyingFurnSet.clear(); stunnedPlayers.clear(); wobblePlayers.clear();
+  playerColorMap.clear(); usedColorIdx = 0;
+  gameRunning = false; throwMode = false; hoverTarget = null; movePath = null; moveTarget = null;
+  keys = {};
+  // Reset furniture positions (reload to get defaults)
+  document.getElementById("game-area").style.display = "none";
+  document.getElementById("chat-panel").style.display = "none";
+  document.getElementById("overlay").style.display = "none";
+  document.getElementById("entry-screen").style.display = "flex";
+  document.getElementById("chat-messages").innerHTML = "";
+  // Close popup if open
+  if (chatPopupWindow && !chatPopupWindow.closed) chatPopupWindow.close();
+  chatPopupWindow = null;
+});
+
+// ═══════════════════════════════════════════
+//  CHAT POPUP BUTTON
+// ═══════════════════════════════════════════
+document.getElementById("chat-popup-btn").addEventListener("click", openChatPopup);
 
 // ═══════════════════════════════════════════
 //  INIT
