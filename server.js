@@ -18,14 +18,14 @@ app.get("/room/:roomCode", (req, res) => {
 const rooms = new Map();
 
 const SPAWN_POINTS = [
-  { x: 400, y: 400 },
-  { x: 450, y: 450 },
-  { x: 350, y: 450 },
+  { x: 600, y: 400 },
+  { x: 650, y: 450 },
+  { x: 550, y: 450 },
+  { x: 700, y: 400 },
+  { x: 600, y: 500 },
+  { x: 550, y: 350 },
+  { x: 700, y: 500 },
   { x: 500, y: 400 },
-  { x: 400, y: 500 },
-  { x: 350, y: 350 },
-  { x: 500, y: 500 },
-  { x: 300, y: 400 },
 ];
 
 io.on("connection", (socket) => {
@@ -46,7 +46,7 @@ io.on("connection", (socket) => {
     currentPlayer = {
       id: socket.id,
       name: String(name).substring(0, 20),
-      character: Math.max(0, Math.min(4, Number(character) || 0)),
+      character: Math.max(0, Math.min(9, Number(character) || 0)),
       x: spawn.x,
       y: spawn.y,
       direction: "down",
