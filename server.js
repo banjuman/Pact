@@ -53,6 +53,7 @@ io.on("connection", (socket) => {
       y: SPAWN_POINTS[room.players.size % SPAWN_POINTS.length].y,
       direction: "down",
       activeEmoji: null,
+      activeStatus: null,
     };
 
     room.players.set(socket.id, currentPlayer);
@@ -109,6 +110,40 @@ io.on("connection", (socket) => {
     io.to(currentRoom).emit("emoji-toggle", {
       id: socket.id,
       emoji: currentPlayer.activeEmoji,
+    });
+  });
+
+  socket.on("status-change", ({ status }) => {
+    if (!currentRoom || !currentPlayer) return;
+    const allowed = ["working", "afk", "oncall", "gaming", "lunch"];
+    if (status !== null && !allowed.includes(status)) return;
+    currentPlayer.activeStatus = currentPlayer.activeStatus === status ? null : status;
+    io.to(currentRoom).emit("status-change", {
+      id: socket.id,
+      status: currentPlayer.activeStatus,
+    });
+  });
+
+  socket.on("highfive-request", ({ targetId }) => {
+    if (!currentRoom || !currentPlayer) return;
+    const room = rooms.get(currentRoom);
+    if (!room || !room.players.has(targetId)) return;
+    const target = room.players.get(targetId);
+    const dx = currentPlayer.x - target.x, dy = currentPlayer.y - target.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 80) return;
+    io.to(currentRoom).emit("highfive-request", {
+      fromId: socket.id,
+      toId: targetId,
+    });
+  });
+
+  socket.on("highfive-accept", ({ fromId }) => {
+    if (!currentRoom || !currentPlayer) return;
+    const room = rooms.get(currentRoom);
+    if (!room || !room.players.has(fromId)) return;
+    io.to(currentRoom).emit("highfive-animate", {
+      player1: fromId,
+      player2: socket.id,
     });
   });
 

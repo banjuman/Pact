@@ -121,9 +121,14 @@ body {
   transform: scale(1.1);
 }
 #throw-divider { width: 1px; background: rgba(255,255,255,0.15); margin: 4px 2px; }
+#status-divider { width: 1px; background: rgba(255,255,255,0.15); margin: 4px 2px; }
 .emoji-btn.throw-active { background: rgba(226,183,20,0.3); box-shadow: 0 0 8px rgba(226,183,20,0.4); }
 .emoji-btn.throw-disabled { opacity: 0.3; cursor: default; }
 .emoji-btn.throw-disabled:hover { background: rgba(255,255,255,0.06); transform: none; }
+.emoji-btn.status-active {
+  background: rgba(0,188,212,0.3); box-shadow: 0 0 10px rgba(0,188,212,0.4);
+  transform: scale(1.1);
+}
 
 /* ── Top Bar (outside game) ── */
 #top-bar {
@@ -185,8 +190,14 @@ body {
     <button class="emoji-btn" data-emoji="😢">😢</button>
     <button class="emoji-btn" data-emoji="⚡">⚡</button>
     <div id="throw-divider"></div>
-    <button class="emoji-btn throw-disabled" id="throw-btn" title="Throw! (T)">🤾</button>
+    <button class="emoji-btn throw-disabled" id="throw-btn" title="Hover + T to throw">🤾</button>
     <button class="emoji-btn" id="vacuum-btn" title="Robot Vacuum (V)">🤖</button>
+    <div id="status-divider"></div>
+    <button class="emoji-btn" data-status="working" title="Working">🔨</button>
+    <button class="emoji-btn" data-status="afk" title="AFK">☕</button>
+    <button class="emoji-btn" data-status="oncall" title="On Call">📞</button>
+    <button class="emoji-btn" data-status="gaming" title="Gaming">🎮</button>
+    <button class="emoji-btn" data-status="lunch" title="Lunch">🍽️</button>
   </div>
 </div>
 
@@ -913,7 +924,6 @@ let movePath = null; // Array of {x,y} waypoints
 let movePathIdx = 0;
 let moveTarget = null; // final destination for indicator
 let currentCamX = 0, currentCamY = 0;
-var throwMode = false;
 var hoverTarget = null; // { type, id, data }
 var flyingPlayers = [];
 var stunnedPlayers = new Map();
@@ -930,6 +940,17 @@ var jumpDirX = 0, jumpDirY = 0; // direction at jump start
 // Original furniture positions for robot vacuum
 var FURNITURE_ORIG = null;
 var robotVacuums = []; // array of vacuum objects
+
+var footstepTimer = 0;
+const FOOTSTEP_INTERVAL = 250; // ms between footstep sounds (~4/sec)
+
+// High-five state
+var pendingHighfive = null;  // { fromId, toId, time }
+var incomingHighfive = null; // { fromId, time }
+var highfiveAnims = [];      // [{ p1, p2, startTime }]
+const HIGHFIVE_RANGE = 60;
+const HIGHFIVE_TIMEOUT = 5000;
+const HIGHFIVE_ANIM_DURATION = 800;
 
 const SPEED = 150;
 const POSITION_SEND_INTERVAL = 50;
@@ -1019,6 +1040,48 @@ function playJoinSound() {
     gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
     osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.35);
+  } catch (e) {}
+}
+
+function playFootstep() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const bufSize = Math.floor(audioCtx.sampleRate * 0.04); // 40ms
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.3));
+    }
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 600 + Math.random() * 200;
+    filter.Q.value = 1.5;
+    src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    src.start(); src.stop(audioCtx.currentTime + 0.05);
+  } catch (e) {}
+}
+
+function playHighfiveSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const bufSize = Math.floor(audioCtx.sampleRate * 0.08);
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.15));
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "highpass"; filter.frequency.value = 800;
+    src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    src.start(); src.stop(audioCtx.currentTime + 0.1);
   } catch (e) {}
 }
 
@@ -1423,6 +1486,28 @@ function joinRoom() {
     if (id === socket.id) updateEmojiButtons();
   });
 
+  socket.on("status-change", ({ id, status }) => {
+    const target = id === socket.id ? localPlayer : remotePlayers.get(id);
+    if (target) target.activeStatus = status;
+    if (id === socket.id) updateStatusButtons();
+  });
+
+  socket.on("highfive-request", ({ fromId, toId }) => {
+    if (toId === socket.id) {
+      incomingHighfive = { fromId, time: Date.now() };
+    }
+    if (fromId === socket.id) {
+      pendingHighfive = { fromId, toId, time: Date.now() };
+    }
+  });
+
+  socket.on("highfive-animate", ({ player1, player2 }) => {
+    highfiveAnims.push({ p1: player1, p2: player2, startTime: Date.now() });
+    pendingHighfive = null;
+    incomingHighfive = null;
+    playHighfiveSound();
+  });
+
   socket.on("throw-object", ({ id, targetId, fromX, fromY, toX, toY }) => {
     const isMe = targetId === socket.id;
     const target = isMe ? localPlayer : remotePlayers.get(targetId);
@@ -1494,7 +1579,7 @@ document.getElementById("chat-input").addEventListener("keydown", (e) => {
 //  EMOJI TOGGLE
 // ═══════════════════════════════════════════
 document.querySelectorAll(".emoji-btn").forEach(btn => {
-  if (btn.id === "throw-btn") return;
+  if (btn.id === "throw-btn" || btn.id === "vacuum-btn" || btn.dataset.status) return;
   btn.addEventListener("click", () => {
     if (socket) socket.emit("emoji-toggle", { emoji: btn.dataset.emoji });
   });
@@ -1503,8 +1588,32 @@ document.querySelectorAll(".emoji-btn").forEach(btn => {
 function updateEmojiButtons() {
   const myEmoji = localPlayer ? localPlayer.activeEmoji : null;
   document.querySelectorAll(".emoji-btn").forEach(btn => {
-    if (btn.id === "throw-btn") return;
+    if (btn.id === "throw-btn" || btn.id === "vacuum-btn" || btn.dataset.status) return;
     btn.classList.toggle("emoji-active", btn.dataset.emoji === myEmoji);
+  });
+}
+
+// ═══════════════════════════════════════════
+//  STATUS BADGES
+// ═══════════════════════════════════════════
+const STATUS_OPTIONS = [
+  { key: "working", emoji: "\uD83D\uDD28", label: "Working" },
+  { key: "afk",     emoji: "\u2615",       label: "AFK" },
+  { key: "oncall",  emoji: "\uD83D\uDCDE", label: "On Call" },
+  { key: "gaming",  emoji: "\uD83C\uDFAE", label: "Gaming" },
+  { key: "lunch",   emoji: "\uD83C\uDF7D\uFE0F", label: "Lunch" },
+];
+
+document.querySelectorAll(".emoji-btn[data-status]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (socket) socket.emit("status-change", { status: btn.dataset.status });
+  });
+});
+
+function updateStatusButtons() {
+  const myStatus = localPlayer ? localPlayer.activeStatus : null;
+  document.querySelectorAll(".emoji-btn[data-status]").forEach(btn => {
+    btn.classList.toggle("status-active", btn.dataset.status === myStatus);
   });
 }
 
@@ -1535,12 +1644,12 @@ function getNearbyThrowables() {
 }
 
 document.getElementById("throw-btn").addEventListener("click", () => {
-  const nearby = getNearbyThrowables();
-  if (nearby.length === 0) return;
-  throwMode = !throwMode;
-  document.getElementById("throw-btn").classList.toggle("throw-active", throwMode);
-  document.getElementById("game-area").style.cursor = throwMode ? "crosshair" : "pointer";
-  if (!throwMode) hoverTarget = null;
+  // Throw via hover + T — button is informational only
+  if (hoverTarget) {
+    if (hoverTarget.type === "player") throwPlayer(hoverTarget.id, hoverTarget.data);
+    else if (hoverTarget.type === "furniture") throwFurniture(hoverTarget.data);
+    hoverTarget = null;
+  }
 });
 
 function throwPlayer(targetId, targetPlayer) {
@@ -1675,19 +1784,40 @@ window.addEventListener("keydown", (e) => {
     if (socket) socket.emit("move", { x: localPlayer.x, y: localPlayer.y, direction: localPlayer.direction });
   }
   if (e.code === "KeyT" && gameRunning) {
-    const nearby = getNearbyThrowables();
-    if (nearby.length === 0) return;
-    throwMode = !throwMode;
-    document.getElementById("throw-btn").classList.toggle("throw-active", throwMode);
-    document.getElementById("game-area").style.cursor = throwMode ? "crosshair" : "pointer";
-    if (!throwMode) hoverTarget = null;
+    if (hoverTarget) {
+      if (hoverTarget.type === "player") throwPlayer(hoverTarget.id, hoverTarget.data);
+      else if (hoverTarget.type === "furniture") throwFurniture(hoverTarget.data);
+      hoverTarget = null;
+    }
+  }
+  if (e.code === "KeyH" && gameRunning && localPlayer) {
+    if (document.activeElement === document.getElementById("chat-input")) return;
+    // If there's an incoming high-five request, accept it
+    if (incomingHighfive && Date.now() - incomingHighfive.time < HIGHFIVE_TIMEOUT) {
+      socket.emit("highfive-accept", { fromId: incomingHighfive.fromId });
+      incomingHighfive = null;
+      return;
+    }
+    // Otherwise, find nearest player within range and request
+    let nearest = null, nearestDist = HIGHFIVE_RANGE;
+    for (const [id, p] of remotePlayers) {
+      const dx = p.x - localPlayer.x, dy = p.y - localPlayer.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < nearestDist && !isPlayerFlying(id) && !stunnedPlayers.has(id)) {
+        nearest = { id, player: p }; nearestDist = dist;
+      }
+    }
+    if (nearest) {
+      socket.emit("highfive-request", { targetId: nearest.id });
+      pendingHighfive = { fromId: socket.id, toId: nearest.id, time: Date.now() };
+    }
   }
 });
 window.addEventListener("keyup", (e) => { keys[e.code] = false; });
 
-// Mouse move for throw hover
+// Mouse move for throw hover (always active — no throwMode needed)
 document.getElementById("game-canvas").addEventListener("mousemove", (e) => {
-  if (!throwMode || !localPlayer || !gameRunning) { hoverTarget = null; return; }
+  if (!localPlayer || !gameRunning) { hoverTarget = null; return; }
   const canvas = e.target, rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   const sx = canvas.width / dpr / rect.width, sy = canvas.height / dpr / rect.height;
@@ -1707,7 +1837,7 @@ document.getElementById("game-canvas").addEventListener("mousemove", (e) => {
       }
     }
   }
-  document.getElementById("game-area").style.cursor = hoverTarget ? "grab" : "crosshair";
+  document.getElementById("game-area").style.cursor = hoverTarget ? "grab" : "default";
 });
 
 // Click: move or throw
@@ -1719,18 +1849,6 @@ document.getElementById("game-canvas").addEventListener("click", (e) => {
   const sx = canvas.width / dpr / rect.width, sy = canvas.height / dpr / rect.height;
   const worldX = (e.clientX - rect.left) * sx - currentCamX;
   const worldY = (e.clientY - rect.top) * sy - currentCamY;
-
-  if (throwMode) {
-    if (hoverTarget) {
-      if (hoverTarget.type === "player") throwPlayer(hoverTarget.id, hoverTarget.data);
-      else if (hoverTarget.type === "furniture") throwFurniture(hoverTarget.data);
-    }
-    throwMode = false;
-    hoverTarget = null;
-    document.getElementById("throw-btn").classList.remove("throw-active");
-    document.getElementById("game-area").style.cursor = "pointer";
-    return;
-  }
 
   // Pathfinding click-to-move
   const path = findPath(localPlayer.x, localPlayer.y, worldX, worldY);
@@ -1750,6 +1868,7 @@ function handleInput(dt) {
   if (!localPlayer) return;
   // Jump physics — override normal movement, skip collision (can hop over furniture)
   if (isJumping) {
+    footstepTimer = 0;
     const elapsed = Date.now() - jumpStartTime;
     const t = Math.min(1, elapsed / JUMP_DURATION);
     localPlayer.x = jumpFromX + (jumpToX - jumpFromX) * t;
@@ -1795,11 +1914,18 @@ function handleInput(dt) {
     dy = (tdy / tdist) * dist;
   }
 
-  if (dx === 0 && dy === 0) { localPlayer.isMoving = false; return; }
+  if (dx === 0 && dy === 0) { localPlayer.isMoving = false; footstepTimer = 0; return; }
 
   if (Math.abs(dy) > Math.abs(dx)) localPlayer.direction = dy < 0 ? "up" : "down";
   else localPlayer.direction = dx < 0 ? "left" : "right";
   localPlayer.isMoving = true;
+
+  // Footstep sounds
+  footstepTimer += dt;
+  if (footstepTimer >= FOOTSTEP_INTERVAL) {
+    footstepTimer = 0;
+    playFootstep();
+  }
 
   const newX = localPlayer.x + dx;
   if (!checkCollision(newX, localPlayer.y)) localPlayer.x = newX;
@@ -1910,7 +2036,7 @@ function update(dt) {
   // Update robot vacuum
   updateVacuum(now);
 
-  // Update throw button state
+  // Update throw button state (always-on hover system)
   const vacuumActive = robotVacuums.length > 0;
   const nearby = vacuumActive ? [] : getNearbyThrowables();
   const throwBtn = document.getElementById("throw-btn");
@@ -1920,12 +2046,12 @@ function update(dt) {
   } else {
     throwBtn.classList.add("throw-disabled");
     throwBtn.disabled = true;
-    if (throwMode) {
-      throwMode = false; hoverTarget = null;
-      throwBtn.classList.remove("throw-active");
-      document.getElementById("game-area").style.cursor = "pointer";
-    }
+    hoverTarget = null;
   }
+
+  // High-five timeout cleanup
+  if (pendingHighfive && Date.now() - pendingHighfive.time > HIGHFIVE_TIMEOUT) pendingHighfive = null;
+  if (incomingHighfive && Date.now() - incomingHighfive.time > HIGHFIVE_TIMEOUT) incomingHighfive = null;
 }
 
 // ═══════════════════════════════════════════
@@ -1976,7 +2102,7 @@ function render() {
   drawables.sort((a, b) => a.sortY - b.sortY);
 
   const now = Date.now();
-  const nearbyThrowables = throwMode ? getNearbyThrowables() : [];
+  const nearbyThrowables = getNearbyThrowables();
 
   for (const d of drawables) {
     if (d.type === "f") {
@@ -2023,6 +2149,26 @@ function render() {
       // Aura effect
       if (d.data.activeEmoji) drawAura(ctx, d.id, d.data.activeEmoji, d.data.x, d.data.y);
 
+      // Status badge
+      if (d.data.activeStatus) {
+        const si = STATUS_OPTIONS.find(s => s.key === d.data.activeStatus);
+        if (si) {
+          const badgeY = d.data.y + (bob || 0) + jOff - 30;
+          ctx.save();
+          ctx.font = "bold 8px 'Segoe UI', system-ui, sans-serif";
+          const tw = ctx.measureText(si.label).width;
+          const bw = tw + 20, bh = 15;
+          const bx = d.data.x - bw / 2, by = badgeY - bh / 2;
+          ctx.fillStyle = "rgba(0,0,0,0.55)";
+          roundRect(ctx, bx, by, bw, bh, 7); ctx.fill();
+          ctx.font = "10px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(si.emoji, bx + 9, badgeY + 0.5);
+          ctx.font = "bold 8px 'Segoe UI', system-ui, sans-serif"; ctx.fillStyle = "#fff";
+          ctx.fillText(si.label, d.data.x + 5, badgeY + 0.5);
+          ctx.restore();
+        }
+      }
+
       // Speech bubble
       const bubble = chatBubbles.get(d.id);
       if (bubble && now - bubble.startTime < BUBBLE_DURATION) {
@@ -2032,34 +2178,63 @@ function render() {
         ctx.restore();
       }
 
-      // Interaction indicator (when near and not in throw mode)
-      if (!d.isSelf && !throwMode && localPlayer) {
+      // Nearby player highlight (always-on throw system)
+      if (!d.isSelf && localPlayer) {
         const dx = d.data.x - localPlayer.x, dy = d.data.y - localPlayer.y;
-        if (Math.sqrt(dx*dx + dy*dy) < INTERACT_RANGE && !isPlayerFlying(d.id) && !stunnedPlayers.has(d.id)) {
-          const pulse = 0.4 + Math.sin(now / 300) * 0.3;
-          ctx.font = "10px serif"; ctx.textAlign = "center"; ctx.globalAlpha = pulse;
-          ctx.fillText("👆", d.data.x, d.data.y - 32);
-          ctx.globalAlpha = 1;
+        if (Math.sqrt(dx*dx + dy*dy) < THROW_RANGE && !isPlayerFlying(d.id) && !stunnedPlayers.has(d.id)) {
+          const isHov = hoverTarget && hoverTarget.type === "player" && hoverTarget.id === d.id;
+          const pulse = isHov ? 0.6 + Math.sin(now / 150) * 0.2 : 0.15 + Math.sin(now / 400) * 0.08;
+          ctx.strokeStyle = `rgba(226,183,20,${pulse})`; ctx.lineWidth = isHov ? 2.5 : 1.5;
+          ctx.beginPath(); ctx.arc(d.data.x, d.data.y + 5, 22, 0, Math.PI * 2); ctx.stroke();
+          if (isHov) {
+            ctx.font = "9px 'Segoe UI', system-ui, sans-serif"; ctx.textAlign = "center";
+            ctx.fillStyle = `rgba(226,183,20,${0.6 + Math.sin(now / 200) * 0.3})`;
+            ctx.fillText("T", d.data.x, d.data.y - 32);
+          }
         }
       }
 
-      // Throw mode hover highlight
-      if (throwMode && hoverTarget && hoverTarget.type === "player" && hoverTarget.id === d.id) {
-        const pulse = 0.5 + Math.sin(now / 150) * 0.3;
-        ctx.strokeStyle = `rgba(226,183,20,${pulse})`; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(d.data.x, d.data.y + 5, 22, 0, Math.PI * 2); ctx.stroke();
+      // High-five indicator
+      if (!d.isSelf && localPlayer && !isPlayerFlying(d.id) && !stunnedPlayers.has(d.id)) {
+        const dx = d.data.x - localPlayer.x, dy = d.data.y - localPlayer.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < HIGHFIVE_RANGE) {
+          // Incoming request from this player
+          if (incomingHighfive && incomingHighfive.fromId === d.id && Date.now() - incomingHighfive.time < HIGHFIVE_TIMEOUT) {
+            const pulse = 0.6 + Math.sin(now / 150) * 0.4;
+            ctx.save(); ctx.globalAlpha = pulse;
+            ctx.font = "14px serif"; ctx.textAlign = "center";
+            ctx.fillText("🤚", d.data.x, d.data.y - 40);
+            ctx.font = "bold 8px 'Segoe UI', system-ui, sans-serif";
+            ctx.fillStyle = "#4fc3f7";
+            ctx.fillText("Press H!", d.data.x, d.data.y - 46);
+            ctx.restore();
+          } else if (!pendingHighfive && !incomingHighfive) {
+            // Show subtle hint
+            const hintAlpha = 0.2 + Math.sin(now / 500) * 0.1;
+            ctx.save(); ctx.globalAlpha = hintAlpha;
+            ctx.font = "10px serif"; ctx.textAlign = "center";
+            ctx.fillText("🤚", d.data.x + 16, d.data.y - 24);
+            ctx.font = "bold 7px 'Segoe UI', system-ui, sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.6)";
+            ctx.fillText("H", d.data.x + 16, d.data.y - 14);
+            ctx.restore();
+          }
+        }
       }
     }
   }
 
-  // Throw mode: highlight nearby furniture
-  if (throwMode) {
-    for (const item of nearbyThrowables) {
-      if (item.type !== "furniture") continue;
-      const isHov = hoverTarget && hoverTarget.type === "furniture" && hoverTarget.id === item.id;
-      const pulse = isHov ? 0.8 + Math.sin(now / 150) * 0.2 : 0.25 + Math.sin(now / 300) * 0.15;
-      ctx.strokeStyle = `rgba(226,183,20,${pulse})`; ctx.lineWidth = isHov ? 2.5 : 1.5;
-      roundRect(ctx, item.data.fx - 3, item.data.fy - 3, item.data.w + 6, item.data.h + 6, 4); ctx.stroke();
+  // Highlight nearby throwable furniture (always-on)
+  for (const item of nearbyThrowables) {
+    if (item.type !== "furniture") continue;
+    const isHov = hoverTarget && hoverTarget.type === "furniture" && hoverTarget.id === item.id;
+    const pulse = isHov ? 0.6 + Math.sin(now / 150) * 0.2 : 0.12 + Math.sin(now / 400) * 0.06;
+    ctx.strokeStyle = `rgba(226,183,20,${pulse})`; ctx.lineWidth = isHov ? 2.5 : 1;
+    roundRect(ctx, item.data.fx - 3, item.data.fy - 3, item.data.w + 6, item.data.h + 6, 4); ctx.stroke();
+    if (isHov) {
+      ctx.font = "9px 'Segoe UI', system-ui, sans-serif"; ctx.textAlign = "center";
+      ctx.fillStyle = `rgba(226,183,20,${0.6 + Math.sin(now / 200) * 0.3})`;
+      ctx.fillText("T", item.data.x, item.data.fy - 8);
     }
   }
 
@@ -2073,6 +2248,29 @@ function render() {
   // Flying props
   for (const fp of flyingProps) {
     if (now - fp.startTime <= PROP_FLY_DURATION) drawFlyingPropItem(ctx, fp, now);
+  }
+
+  // High-five animations
+  for (let i = highfiveAnims.length - 1; i >= 0; i--) {
+    const hf = highfiveAnims[i];
+    const elapsed = now - hf.startTime;
+    if (elapsed > HIGHFIVE_ANIM_DURATION) { highfiveAnims.splice(i, 1); continue; }
+    const t = elapsed / HIGHFIVE_ANIM_DURATION;
+    const p1 = hf.p1 === (socket ? socket.id : null) ? localPlayer : remotePlayers.get(hf.p1);
+    const p2 = hf.p2 === (socket ? socket.id : null) ? localPlayer : remotePlayers.get(hf.p2);
+    if (!p1 || !p2) continue;
+    const midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2;
+    const starAlpha = t < 0.3 ? t / 0.3 : 1 - (t - 0.3) / 0.7;
+    ctx.save(); ctx.globalAlpha = Math.max(0, starAlpha);
+    ctx.font = `${12 + t * 10}px serif`; ctx.textAlign = "center";
+    ctx.fillText("\uD83D\uDE4C", midX, midY - 20 - t * 18);
+    for (let s = 0; s < 5; s++) {
+      const a = (s / 5) * Math.PI * 2 + t * 3;
+      const r = 10 + t * 28;
+      ctx.font = "8px serif";
+      ctx.fillText("\u2728", midX + Math.cos(a) * r, midY - 10 + Math.sin(a) * r);
+    }
+    ctx.restore();
   }
 
   // Robot vacuum
@@ -2113,11 +2311,13 @@ window.addEventListener("resize", () => {
 // ═══════════════════════════════════════════
 //  ROBOT VACUUM (multiple vacuums for big messes)
 // ═══════════════════════════════════════════
-const VACUUM_COLORS = ["#4fc3f7", "#ab47bc", "#66bb6a"]; // LED colors per vacuum
+const VACUUM_COLORS = ["#4fc3f7", "#ab47bc", "#66bb6a", "#ff7043", "#ffd54f"]; // LED colors per vacuum
 const VACUUM_SPAWNS = [
   { x: 800, y: 550 },
   { x: 300, y: 500 },
   { x: 1300, y: 500 },
+  { x: 150, y: 750 },
+  { x: 1400, y: 750 },
 ];
 
 function startVacuum() {
@@ -2135,17 +2335,19 @@ function startVacuum() {
     addSystemMessage("Everything is already tidy! 🧹");
     return;
   }
-  // More mess → more vacuums (always finish in ~10 seconds)
+  // More mess → more vacuums (up to 5)
   let numVacuums;
-  if (allTargets.length <= 3) numVacuums = 1;
-  else if (allTargets.length <= 7) numVacuums = 2;
-  else numVacuums = 3;
+  if (allTargets.length <= 2) numVacuums = 1;
+  else if (allTargets.length <= 5) numVacuums = 2;
+  else if (allTargets.length <= 10) numVacuums = 3;
+  else if (allTargets.length <= 18) numVacuums = 4;
+  else numVacuums = 5;
   // Split targets round-robin among vacuums
   const groups = [];
   for (let v = 0; v < numVacuums; v++) groups.push([]);
   for (let i = 0; i < allTargets.length; i++) groups[i % numVacuums].push(allTargets[i]);
   // Create each vacuum
-  const TARGET_TIME = 10;
+  const TARGET_TIME = 15;
   for (let v = 0; v < numVacuums; v++) {
     if (groups[v].length === 0) continue;
     const targets = groups[v];
@@ -2158,9 +2360,9 @@ function startVacuum() {
       prevX = FURNITURE_ORIG[fi].x + FURNITURE[fi].w / 2;
       prevY = FURNITURE_ORIG[fi].y + FURNITURE[fi].h / 2;
     }
-    const throwPause = targets.length * 0.35;
-    const moveTime = Math.max(2, TARGET_TIME - throwPause);
-    const speed = Math.max(100, Math.min(500, totalDist / moveTime));
+    const throwPause = targets.length * 0.3;
+    const moveTime = Math.max(3, TARGET_TIME - throwPause);
+    const speed = Math.max(80, Math.min(400, totalDist / moveTime));
     robotVacuums.push({
       active: true, targets, currentIdx: 0,
       x: VACUUM_SPAWNS[v].x, y: VACUUM_SPAWNS[v].y,
@@ -2309,7 +2511,8 @@ document.getElementById("exit-btn").addEventListener("click", () => {
   localPlayer = null; remotePlayers.clear(); chatBubbles.clear(); auraParticles.clear();
   flyingPlayers = []; flyingProps = []; flyingFurnSet.clear(); stunnedPlayers.clear(); wobblePlayers.clear();
   playerColorMap.clear(); usedColorIdx = 0;
-  throwMode = false; hoverTarget = null; movePath = null; moveTarget = null;
+  hoverTarget = null; movePath = null; moveTarget = null;
+  pendingHighfive = null; incomingHighfive = null; highfiveAnims = [];
   isJumping = false; if (robotVacuums.length > 0) stopVacuumSound(); robotVacuums = [];
   keys = {};
   // Reset furniture positions to originals
