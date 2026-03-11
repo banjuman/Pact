@@ -113,14 +113,7 @@ body {
   padding: 12px 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08);
   font-size: 13px; display: flex; gap: 14px; align-items: center;
 }
-#hud .room-code { color: #e2b714; font-weight: 700; font-family: monospace; font-size: 14px; }
-#hud .player-count { color: rgba(255,255,255,0.5); }
-#copy-link-btn {
-  padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); font-size: 11px;
-  cursor: pointer; transition: all 0.15s;
-}
-#copy-link-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+#hud .player-count { color: rgba(255,255,255,0.6); font-weight: 500; }
 
 /* ── Overlay ── */
 #overlay {
@@ -146,9 +139,7 @@ body {
 <div id="game-area">
   <canvas id="game-canvas"></canvas>
   <div id="hud">
-    <span class="room-code" id="hud-room"></span>
     <span class="player-count" id="hud-players"></span>
-    <button id="copy-link-btn">Copy Link</button>
   </div>
   <div id="emoji-bar">
     <button class="emoji-btn" data-emoji="😀">😀</button>
@@ -774,13 +765,7 @@ const BUBBLE_DURATION = 5000;
 //  ROOM CODE
 // ═══════════════════════════════════════════
 function getRoomCode() {
-  const m = window.location.pathname.match(/\/room\/([a-zA-Z0-9_-]+)/);
-  if (m) return m[1];
-  const p = new URLSearchParams(window.location.search);
-  if (p.has("room")) return p.get("room");
-  const code = Math.random().toString(36).substring(2, 8);
-  window.history.replaceState({}, "", "/room/" + code);
-  return code;
+  return "office";
 }
 
 // ═══════════════════════════════════════════
@@ -837,7 +822,7 @@ function setupEntryScreen() {
     container.appendChild(canvas);
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
-    drawCharacter(ctx, 26, 34, i, "down", ch.name, false, 0);
+    drawCharacter(ctx, 26, 34, i, "down", "", false, 0);
     canvas.addEventListener("click", () => {
       selectedCharacter = i;
       document.querySelectorAll(".char-preview").forEach(c => c.classList.remove("selected"));
@@ -956,16 +941,8 @@ document.querySelectorAll(".emoji-btn").forEach(btn => {
 //  HUD
 // ═══════════════════════════════════════════
 function updateHUD() {
-  document.getElementById("hud-room").textContent = currentRoomCode;
   document.getElementById("hud-players").textContent = (remotePlayers.size + 1) + " online";
 }
-
-document.getElementById("copy-link-btn").addEventListener("click", () => {
-  navigator.clipboard.writeText(window.location.origin + "/room/" + currentRoomCode).then(() => {
-    const btn = document.getElementById("copy-link-btn");
-    btn.textContent = "Copied!"; setTimeout(() => btn.textContent = "Copy Link", 1500);
-  });
-});
 
 // ═══════════════════════════════════════════
 //  INPUT (Keyboard + Click-to-Move)
