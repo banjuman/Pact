@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pact - Virtual Office</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -13,6 +13,7 @@ body {
   overflow: hidden;
   height: 100vh;
   display: flex;
+  flex-direction: column;
 }
 
 /* ── Entry Screen ── */
@@ -130,23 +131,24 @@ body {
 .emoji-btn.throw-disabled { opacity: 0.3; cursor: default; }
 .emoji-btn.throw-disabled:hover { background: rgba(255,255,255,0.06); transform: none; }
 
-/* ── HUD ── */
-#hud {
-  position: absolute; top: 10px; left: 10px;
-  background: rgba(15,15,30,0.7); backdrop-filter: blur(8px);
-  padding: 5px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);
-  font-size: 12px; display: flex; gap: 6px; align-items: center;
-  pointer-events: none; z-index: 5;
+/* ── Top Bar (outside game) ── */
+#top-bar {
+  display: none; height: 36px; background: #13132a;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  align-items: center; justify-content: space-between;
+  padding: 0 14px; flex-shrink: 0;
 }
+#main-content { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+/* ── HUD ── */
+#hud { display: flex; gap: 6px; align-items: center; font-size: 12px; }
 #hud-dot { width: 7px; height: 7px; border-radius: 50%; background: #e74c3c; flex-shrink: 0; }
 #hud-dot.online { background: #2ecc71; box-shadow: 0 0 6px rgba(46,204,113,0.5); }
 #hud .player-count { color: rgba(255,255,255,0.55); font-weight: 600; font-size: 11px; }
 /* ── Exit Button ── */
 #exit-btn {
-  position: absolute; top: 10px; right: 10px; z-index: 5;
-  background: rgba(15,15,30,0.7); backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
-  padding: 5px 12px; color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+  padding: 4px 12px; color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600;
   cursor: pointer; transition: all 0.15s;
 }
 #exit-btn:hover { background: rgba(231,76,60,0.3); color: #fff; border-color: rgba(231,76,60,0.4); }
@@ -172,13 +174,16 @@ body {
   </div>
 </div>
 
-<div id="game-area">
-  <canvas id="game-canvas"></canvas>
+<div id="top-bar">
   <div id="hud">
     <span id="hud-dot"></span>
     <span class="player-count" id="hud-players"></span>
   </div>
   <button id="exit-btn">✕ Exit</button>
+</div>
+<div id="main-content">
+<div id="game-area">
+  <canvas id="game-canvas"></canvas>
   <div id="emoji-bar">
     <button class="emoji-btn" data-emoji="😀">😀</button>
     <button class="emoji-btn" data-emoji="🔥">🔥</button>
@@ -197,6 +202,7 @@ body {
   <div id="chat-input-area">
     <input id="chat-input" type="text" placeholder="Type a message... (Enter)" maxlength="500" autocomplete="off" />
   </div>
+</div>
 </div>
 
 <div id="overlay"><span id="overlay-text">Connecting...</span></div>
@@ -1022,6 +1028,41 @@ function playJoinSound() {
   } catch (e) {}
 }
 
+var vacuumSoundNodes = null;
+function playVacuumSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc1 = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    const noise = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+    osc1.type = "sawtooth"; osc1.frequency.value = 80;
+    osc2.type = "square"; osc2.frequency.value = 120;
+    noise.type = "triangle"; noise.frequency.value = 240;
+    lfo.type = "sine"; lfo.frequency.value = 4;
+    lfoGain.gain.value = 12;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc1.frequency);
+    lfoGain.connect(osc2.frequency);
+    osc1.connect(gain); osc2.connect(gain); noise.connect(gain);
+    gain.connect(audioCtx.destination);
+    gain.gain.value = 0.035;
+    osc1.start(); osc2.start(); noise.start(); lfo.start();
+    vacuumSoundNodes = { osc1, osc2, noise, lfo, gain };
+  } catch (e) {}
+}
+function stopVacuumSound() {
+  if (!vacuumSoundNodes) return;
+  try {
+    vacuumSoundNodes.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+    const nodes = vacuumSoundNodes;
+    vacuumSoundNodes = null;
+    setTimeout(() => { try { nodes.osc1.stop(); nodes.osc2.stop(); nodes.noise.stop(); nodes.lfo.stop(); } catch(e) {} }, 400);
+  } catch (e) { vacuumSoundNodes = null; }
+}
+
 // ═══════════════════════════════════════════
 //  NAME COLORS (random, non-overlapping)
 // ═══════════════════════════════════════════
@@ -1073,7 +1114,7 @@ function openChatPopup() {
       if (text && socket) { socket.emit("chat-message", { text }); e.target.value = ""; }
     }
   });
-  chatPopupWindow.addEventListener("beforeunload", () => { chatPopupWindow = null; });
+  chatPopupWindow.addEventListener("beforeunload", () => { chatPopupWindow = null; if (gameRunning) document.getElementById("chat-panel").style.display = "flex"; });
   // Hide main chat
   document.getElementById("chat-panel").style.display = "none";
 }
@@ -1352,6 +1393,7 @@ function joinRoom() {
       else remotePlayers.set(p.id, { ...p, targetX: p.x, targetY: p.y, isMoving: false });
     }
     document.getElementById("entry-screen").style.display = "none";
+    document.getElementById("top-bar").style.display = "flex";
     document.getElementById("game-area").style.display = "block";
     document.getElementById("chat-panel").style.display = "flex";
     document.getElementById("overlay").style.display = "none";
@@ -2051,6 +2093,7 @@ function render() {
 //  GAME LOOP
 // ═══════════════════════════════════════════
 function gameLoop(ts) {
+  if (!gameRunning) return; // stop loop on exit
   const dt = ts - lastTime; lastTime = ts;
   if (dt < 200) { handleInput(dt); update(dt); }
   render();
@@ -2072,15 +2115,14 @@ function resizeCanvas() {
 window.addEventListener("resize", () => { if (gameRunning) resizeCanvas(); });
 
 // ═══════════════════════════════════════════
-//  ROBOT VACUUM
+//  ROBOT VACUUM (physically moves & throws furniture back)
 // ═══════════════════════════════════════════
 function startVacuum() {
   if (robotVacuum && robotVacuum.active) return;
   if (!FURNITURE_ORIG) return;
-  // Find all furniture that moved from original position
   const targets = [];
   for (let i = 0; i < FURNITURE.length; i++) {
-    if (FURNITURE[i].noCollision) continue; // skip rugs
+    if (FURNITURE[i].noCollision) continue;
     const orig = FURNITURE_ORIG[i];
     if (Math.abs(FURNITURE[i].x - orig.x) > 2 || Math.abs(FURNITURE[i].y - orig.y) > 2) {
       targets.push(i);
@@ -2090,79 +2132,124 @@ function startVacuum() {
     addSystemMessage("Everything is already tidy! 🧹");
     return;
   }
-  // Start from center of map
-  robotVacuum = { active: true, startTime: Date.now(), targets, currentIdx: 0, x: MAP.width/2, y: MAP.height/2 + 50, phase: "moving", phaseStart: Date.now() };
+  // Calculate speed so vacuum finishes in ~12 seconds total
+  let totalDist = 0;
+  let prevX = MAP.width / 2, prevY = MAP.height / 2 + 50;
+  for (const fi of targets) {
+    const fx = FURNITURE[fi].x + FURNITURE[fi].w / 2;
+    const fy = FURNITURE[fi].y + FURNITURE[fi].h / 2;
+    totalDist += Math.sqrt((fx - prevX) * (fx - prevX) + (fy - prevY) * (fy - prevY));
+    prevX = FURNITURE_ORIG[fi].x + FURNITURE[fi].w / 2;
+    prevY = FURNITURE_ORIG[fi].y + FURNITURE[fi].h / 2;
+  }
+  const throwPauseTotal = targets.length * 0.35;
+  const moveTime = Math.max(3, 12 - throwPauseTotal);
+  const speed = Math.max(150, Math.min(400, totalDist / moveTime));
+  robotVacuum = {
+    active: true, startTime: Date.now(), targets, currentIdx: 0,
+    x: MAP.width / 2, y: MAP.height / 2 + 50,
+    phase: "moving", phaseStart: Date.now(),
+    speed, direction: 0
+  };
   addSystemMessage("🤖 Robot vacuum activated!");
   document.getElementById("vacuum-btn").classList.add("emoji-active");
+  playVacuumSound();
 }
 
 function updateVacuum(now) {
   if (!robotVacuum || !robotVacuum.active) return;
   const rv = robotVacuum;
-  const VACUUM_SPEED = 800; // pixels per second — very fast!
-  const dt = 16 / 1000; // ~60fps
+  const dt = 16 / 1000;
 
   if (rv.phase === "moving") {
-    // Move toward current target furniture
     const fi = rv.targets[rv.currentIdx];
-    const tgtX = FURNITURE_ORIG[fi].x + FURNITURE[fi].w / 2;
-    const tgtY = FURNITURE_ORIG[fi].y + FURNITURE[fi].h / 2;
+    const tgtX = FURNITURE[fi].x + FURNITURE[fi].w / 2;
+    const tgtY = FURNITURE[fi].y + FURNITURE[fi].h / 2;
     const dx = tgtX - rv.x, dy = tgtY - rv.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 10) {
-      rv.phase = "returning"; rv.phaseStart = now;
-      // Pick up the furniture — it teleports to vacuum position
+    rv.direction = Math.atan2(dy, dx);
+    if (dist < 22) {
+      // Reached furniture — throw it back to original position
+      rv.phase = "throwing"; rv.phaseStart = now;
+      const orig = FURNITURE_ORIG[fi];
+      const f = FURNITURE[fi];
+      flyingFurnSet.add(fi);
+      flyingProps.push({
+        propId: null, propType: f.type,
+        fromX: f.x + f.w / 2, fromY: f.y + f.h / 2,
+        toX: orig.x + f.w / 2, toY: orig.y + f.h / 2,
+        startTime: now, throwerId: "__vacuum__",
+        furnW: f.w, furnH: f.h, furnIdx: fi
+      });
+      playThrowSound();
     } else {
-      rv.x += (dx / dist) * VACUUM_SPEED * dt;
-      rv.y += (dy / dist) * VACUUM_SPEED * dt;
+      rv.x += (dx / dist) * rv.speed * dt;
+      rv.y += (dy / dist) * rv.speed * dt;
     }
-    // Also drag the furniture towards original position as vacuum approaches
-    const f = FURNITURE[fi]; const orig = FURNITURE_ORIG[fi];
-    const fdx = orig.x - f.x, fdy = orig.y - f.y;
-    const fdist = Math.sqrt(fdx*fdx + fdy*fdy);
-    if (fdist > 2) {
-      const speed = Math.min(VACUUM_SPEED * dt, fdist);
-      f.x += (fdx / fdist) * speed;
-      f.y += (fdy / fdist) * speed;
+  } else if (rv.phase === "throwing") {
+    // Brief pause, then move to next target (overlaps with throw animation)
+    if (now - rv.phaseStart >= 350) {
+      rv.currentIdx++;
+      if (rv.currentIdx >= rv.targets.length) {
+        rv.phase = "finishing"; rv.phaseStart = now;
+      } else {
+        rv.phase = "moving"; rv.phaseStart = now;
+      }
     }
-  } else if (rv.phase === "returning") {
-    // Snap furniture to original
-    const fi = rv.targets[rv.currentIdx];
-    FURNITURE[fi].x = FURNITURE_ORIG[fi].x;
-    FURNITURE[fi].y = FURNITURE_ORIG[fi].y;
-    rv.currentIdx++;
-    if (rv.currentIdx >= rv.targets.length) {
-      // Done!
+  } else if (rv.phase === "finishing") {
+    // Wait for last throw animation to complete
+    if (now - rv.phaseStart >= PROP_FLY_DURATION + 100) {
       rv.active = false;
       buildNavGrid();
       addSystemMessage("🤖 취사가 완료되었습니다.");
       document.getElementById("vacuum-btn").classList.remove("emoji-active");
-      return;
+      stopVacuumSound();
     }
-    rv.phase = "moving"; rv.phaseStart = now;
-    buildNavGrid(); // rebuild as each piece returns
   }
 }
 
 function drawVacuum(ctx, now) {
   if (!robotVacuum || !robotVacuum.active) return;
   const rv = robotVacuum;
-  // Draw robot vacuum body
+  // Shadow
+  ctx.fillStyle = "rgba(0,0,0,0.15)";
+  ctx.beginPath(); ctx.ellipse(rv.x, rv.y + 10, 13, 4, 0, 0, Math.PI * 2); ctx.fill();
+  // Body
   ctx.save();
   ctx.translate(rv.x, rv.y);
-  ctx.rotate(now / 300); // spinning
-  // Body circle
+  ctx.rotate(rv.direction + Math.PI / 2);
+  // Outer ring
   ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
+  // Spinning brush lines
+  const spin = now / 100;
+  ctx.strokeStyle = "#777"; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 3; i++) {
+    const a = spin + i * Math.PI * 2 / 3;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * 8, Math.sin(a) * 8); ctx.stroke();
+  }
   // LED eye
-  ctx.fillStyle = "#4fc3f7"; ctx.beginPath(); ctx.arc(0, -5, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#81d4fa"; ctx.beginPath(); ctx.arc(0, -5, 1.5, 0, Math.PI * 2); ctx.fill();
+  const blink = Math.sin(now / 200) > 0;
+  ctx.fillStyle = blink ? "#4fc3f7" : "#81d4fa";
+  ctx.beginPath(); ctx.arc(0, -5, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#b3e5fc"; ctx.beginPath(); ctx.arc(0, -5, 1.5, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
-  // Shadow
-  ctx.fillStyle = "rgba(0,0,0,0.15)"; ctx.beginPath(); ctx.ellipse(rv.x, rv.y + 10, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
-  // Progress text
+  // Dust trail particles when moving
+  if (rv.phase === "moving") {
+    ctx.globalAlpha = 0.25;
+    for (let i = 0; i < 3; i++) {
+      const ox = (Math.random() - 0.5) * 16;
+      const oy = (Math.random() - 0.5) * 16 + 5;
+      const s = 1 + Math.random() * 2;
+      ctx.fillStyle = "#bbb";
+      ctx.beginPath(); ctx.arc(rv.x + ox, rv.y + oy, s, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // Progress
   const progress = Math.round((rv.currentIdx / rv.targets.length) * 100);
-  ctx.font = "bold 9px 'Segoe UI', system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "rgba(79,195,247,0.8)";
+  ctx.font = "bold 9px 'Segoe UI', system-ui"; ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(79,195,247,0.8)";
   ctx.fillText(progress + "%", rv.x, rv.y - 20);
 }
 
@@ -2175,30 +2262,30 @@ window.addEventListener("keydown", (e) => {
 });
 
 // ═══════════════════════════════════════════
-//  ZOOM PREVENTION
-// ═══════════════════════════════════════════
-document.addEventListener("wheel", (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
-document.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && (e.key === "+" || e.key === "-" || e.key === "=" || e.key === "0")) e.preventDefault();
-});
-
-// ═══════════════════════════════════════════
 //  EXIT BUTTON
 // ═══════════════════════════════════════════
 document.getElementById("exit-btn").addEventListener("click", () => {
+  gameRunning = false; // stop game loop FIRST
   if (socket) { socket.disconnect(); socket = null; }
   localPlayer = null; remotePlayers.clear(); chatBubbles.clear(); auraParticles.clear();
   flyingPlayers = []; flyingProps = []; flyingFurnSet.clear(); stunnedPlayers.clear(); wobblePlayers.clear();
   playerColorMap.clear(); usedColorIdx = 0;
-  gameRunning = false; throwMode = false; hoverTarget = null; movePath = null; moveTarget = null;
+  throwMode = false; hoverTarget = null; movePath = null; moveTarget = null;
+  isJumping = false; if (robotVacuum) stopVacuumSound(); robotVacuum = null;
   keys = {};
-  // Reset furniture positions (reload to get defaults)
+  // Reset furniture positions to originals
+  if (FURNITURE_ORIG) {
+    for (let i = 0; i < FURNITURE.length; i++) {
+      FURNITURE[i].x = FURNITURE_ORIG[i].x;
+      FURNITURE[i].y = FURNITURE_ORIG[i].y;
+    }
+  }
+  document.getElementById("top-bar").style.display = "none";
   document.getElementById("game-area").style.display = "none";
   document.getElementById("chat-panel").style.display = "none";
   document.getElementById("overlay").style.display = "none";
   document.getElementById("entry-screen").style.display = "flex";
   document.getElementById("chat-messages").innerHTML = "";
-  // Close popup if open
   if (chatPopupWindow && !chatPopupWindow.closed) chatPopupWindow.close();
   chatPopupWindow = null;
 });
