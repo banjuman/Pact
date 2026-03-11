@@ -9,23 +9,21 @@ const io = new Server(httpServer);
 
 app.use(express.static(path.join(__dirname, "public")));
 
-// Any /room/:code path serves the same index.html
 app.get("/room/:roomCode", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// In-memory rooms: Map<roomCode, { players: Map<socketId, player> }>
 const rooms = new Map();
 
 const SPAWN_POINTS = [
-  { x: 600, y: 400 },
-  { x: 650, y: 450 },
-  { x: 550, y: 450 },
-  { x: 700, y: 400 },
-  { x: 600, y: 500 },
-  { x: 550, y: 350 },
-  { x: 700, y: 500 },
-  { x: 500, y: 400 },
+  { x: 500, y: 490 },
+  { x: 560, y: 490 },
+  { x: 620, y: 490 },
+  { x: 680, y: 490 },
+  { x: 740, y: 490 },
+  { x: 800, y: 490 },
+  { x: 860, y: 490 },
+  { x: 920, y: 490 },
 ];
 
 io.on("connection", (socket) => {
@@ -34,13 +32,8 @@ io.on("connection", (socket) => {
 
   socket.on("join-room", ({ roomCode, name, character }) => {
     if (!roomCode || !name) return;
-
-    // Create room if needed
-    if (!rooms.has(roomCode)) {
-      rooms.set(roomCode, { players: new Map() });
-    }
+    if (!rooms.has(roomCode)) rooms.set(roomCode, { players: new Map() });
     const room = rooms.get(roomCode);
-
     const spawn = SPAWN_POINTS[room.players.size % SPAWN_POINTS.length];
 
     currentPlayer = {
@@ -50,20 +43,18 @@ io.on("connection", (socket) => {
       x: spawn.x,
       y: spawn.y,
       direction: "down",
+      activeEmoji: null,
     };
 
     room.players.set(socket.id, currentPlayer);
     currentRoom = roomCode;
     socket.join(roomCode);
 
-    // Send full state to joiner
     socket.emit("room-state", {
       roomCode,
       players: Array.from(room.players.values()),
       selfId: socket.id,
     });
-
-    // Notify others
     socket.to(roomCode).emit("player-joined", currentPlayer);
   });
 
@@ -92,13 +83,15 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("emoji-reaction", ({ emoji }) => {
+  socket.on("emoji-toggle", ({ emoji }) => {
     if (!currentRoom || !currentPlayer) return;
-    const allowed = ["😀", "🎉", "👍", "🔥", "❤️"];
+    const allowed = ["😀", "🔥", "❤️", "😢", "⚡"];
     if (!allowed.includes(emoji)) return;
-    io.to(currentRoom).emit("emoji-reaction", {
+    currentPlayer.activeEmoji =
+      currentPlayer.activeEmoji === emoji ? null : emoji;
+    io.to(currentRoom).emit("emoji-toggle", {
       id: socket.id,
-      emoji,
+      emoji: currentPlayer.activeEmoji,
     });
   });
 
@@ -114,14 +107,24 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("throw-prop", ({ propType, fromX, fromY, toX, toY }) => {
+    if (!currentRoom || !currentPlayer) return;
+    io.to(currentRoom).emit("throw-prop", {
+      id: socket.id,
+      propType: String(propType || "mug"),
+      fromX: Number(fromX) || 0,
+      fromY: Number(fromY) || 0,
+      toX: Number(toX) || 0,
+      toY: Number(toY) || 0,
+    });
+  });
+
   socket.on("disconnect", () => {
     if (currentRoom && rooms.has(currentRoom)) {
       const room = rooms.get(currentRoom);
       room.players.delete(socket.id);
       socket.to(currentRoom).emit("player-left", { id: socket.id });
-      if (room.players.size === 0) {
-        rooms.delete(currentRoom);
-      }
+      if (room.players.size === 0) rooms.delete(currentRoom);
     }
   });
 });

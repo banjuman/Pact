@@ -105,8 +105,14 @@ body {
 }
 .emoji-btn:hover { background: rgba(255,255,255,0.15); transform: scale(1.15); }
 .emoji-btn:active { transform: scale(0.95); }
+.emoji-btn.emoji-active {
+  background: rgba(226,183,20,0.3); box-shadow: 0 0 10px rgba(226,183,20,0.4);
+  transform: scale(1.1);
+}
 #throw-divider { width: 1px; background: rgba(255,255,255,0.15); margin: 4px 2px; }
 .emoji-btn.throw-active { background: rgba(226,183,20,0.3); box-shadow: 0 0 8px rgba(226,183,20,0.4); }
+.emoji-btn.throw-disabled { opacity: 0.3; cursor: default; }
+.emoji-btn.throw-disabled:hover { background: rgba(255,255,255,0.06); transform: none; }
 
 /* ── HUD ── */
 #hud {
@@ -145,12 +151,12 @@ body {
   </div>
   <div id="emoji-bar">
     <button class="emoji-btn" data-emoji="😀">😀</button>
-    <button class="emoji-btn" data-emoji="🎉">🎉</button>
-    <button class="emoji-btn" data-emoji="👍">👍</button>
     <button class="emoji-btn" data-emoji="🔥">🔥</button>
     <button class="emoji-btn" data-emoji="❤️">❤️</button>
+    <button class="emoji-btn" data-emoji="😢">😢</button>
+    <button class="emoji-btn" data-emoji="⚡">⚡</button>
     <div id="throw-divider"></div>
-    <button class="emoji-btn" id="throw-btn" title="Throw someone! (T)">🤾</button>
+    <button class="emoji-btn throw-disabled" id="throw-btn" title="Throw! (T)">🤾</button>
   </div>
 </div>
 
@@ -295,14 +301,12 @@ function drawHair(ctx, cx, cy, color, style, dir) {
       ctx.beginPath(); ctx.arc(cx, cy - 8, 14, 0, Math.PI * 2); ctx.fill();
       break;
     case "buzz":
-      ctx.fillStyle = color;
       ctx.beginPath(); ctx.arc(cx, cy - 6, 10.5, Math.PI, 0); ctx.fill();
       ctx.fillRect(cx - 10, cy - 7, 20, 3);
       break;
     case "wavy":
       ctx.beginPath(); ctx.arc(cx, cy - 7, 10, Math.PI, 0); ctx.fill();
       ctx.fillRect(cx - 10, cy - 8, 20, 4);
-      // Wavy sides
       for (let i = 0; i < 3; i++) {
         const offset = Math.sin(i * 1.2) * 2;
         if (dir !== "right") ctx.fillRect(cx - 12 + offset, cy - 4 + i * 5, 5, 5);
@@ -312,7 +316,6 @@ function drawHair(ctx, cx, cy, color, style, dir) {
     case "braids":
       ctx.beginPath(); ctx.arc(cx, cy - 7, 10, Math.PI, 0); ctx.fill();
       ctx.fillRect(cx - 10, cy - 8, 20, 4);
-      // Two braids
       if (dir !== "right") { ctx.fillRect(cx - 11, cy - 4, 3, 18); ctx.beginPath(); ctx.arc(cx - 9.5, cy + 14, 2, 0, Math.PI * 2); ctx.fill(); }
       if (dir !== "left") { ctx.fillRect(cx + 8, cy - 4, 3, 18); ctx.beginPath(); ctx.arc(cx + 9.5, cy + 14, 2, 0, Math.PI * 2); ctx.fill(); }
       break;
@@ -357,7 +360,6 @@ function drawAccessory(ctx, cx, cy, acc, dir) {
       break;
     case "bandana":
       ctx.fillStyle = "#e74c3c"; ctx.fillRect(cx - 10, cy - 9, 20, 4);
-      // Knot on side
       ctx.beginPath(); ctx.arc(cx + 10, cy - 7, 3, 0, Math.PI * 2); ctx.fill();
       ctx.fillRect(cx + 10, cy - 6, 6, 2); ctx.fillRect(cx + 10, cy - 9, 6, 2);
       break;
@@ -373,127 +375,170 @@ function drawAccessory(ctx, cx, cy, acc, dir) {
       ctx.beginPath(); ctx.arc(cx, cy - 8, 11, Math.PI, 0); ctx.fill();
       ctx.fillRect(cx - 11, cy - 9, 22, 5);
       ctx.fillStyle = "#546e7a"; ctx.fillRect(cx - 11, cy - 6, 22, 3);
-      // Pom pom
       ctx.fillStyle = "#ff5722"; ctx.beginPath(); ctx.arc(cx, cy - 19, 3, 0, Math.PI * 2); ctx.fill();
       break;
   }
 }
 
 // ═══════════════════════════════════════════
-//  MAP - Modern Office
+//  MAP - Modern Office (1600 x 1000)
 // ═══════════════════════════════════════════
-const MAP = { width: 1400, height: 900, tileSize: 32 };
+const MAP = { width: 1600, height: 1000, tileSize: 32 };
 
-// Floor zones (drawn as colored areas before tiles)
 const FLOOR_ZONES = [
-  { x: 0, y: 0, w: 860, h: 440, color: "#e8ddd0" },           // Work area - warm
-  { x: 860, y: 0, w: 540, h: 440, color: "#d5dce8" },          // Meeting - cool
-  { x: 0, y: 440, w: 560, h: 460, color: "#e0e0e0" },          // Kitchen - neutral
-  { x: 560, y: 440, w: 840, h: 460, color: "#ddd5cc" },         // Lounge - cozy
+  { x: 14,   y: 14,  w: 806, h: 456, color: "#ede5d8" },     // Work area
+  { x: 838,  y: 14,  w: 748, h: 456, color: "#dce3ed" },     // Meeting room
+  { x: 14,   y: 470, w: 1572, h: 60, color: "#e8e4de" },     // Central corridor
+  { x: 14,   y: 530, w: 460, h: 456, color: "#e5e5e0" },     // Kitchen
+  { x: 474,  y: 530, w: 626, h: 456, color: "#e0d8ce" },     // Lounge
+  { x: 1118, y: 530, w: 468, h: 456, color: "#ddd5e5" },     // Rest/Nap
+];
+
+const ZONE_LABELS = [
+  { text: "WORKSPACE", x: 420, y: 260 },
+  { text: "MEETING", x: 1200, y: 260 },
+  { text: "KITCHEN", x: 240, y: 760 },
+  { text: "LOUNGE", x: 780, y: 760 },
+  { text: "REST", x: 1350, y: 760 },
 ];
 
 const WALLS = [
+  // Outer walls
   { x: 0, y: 0, w: MAP.width, h: 14 },
   { x: 0, y: MAP.height - 14, w: MAP.width, h: 14 },
   { x: 0, y: 0, w: 14, h: MAP.height },
   { x: MAP.width - 14, y: 0, w: 14, h: MAP.height },
-  // Meeting room walls
-  { x: 860, y: 0, w: 8, h: 180 },
-  { x: 860, y: 260, w: 8, h: 180 },
-  // Kitchen divider
-  { x: 0, y: 440, w: 400, h: 8 },
-  { x: 480, y: 440, w: 80, h: 8 },
+  // Meeting room left wall (100px doorway at y=190-290)
+  { x: 830, y: 14, w: 8, h: 176 },
+  { x: 830, y: 290, w: 8, h: 180 },
+  // Nap room left wall (100px doorway at y=700-800)
+  { x: 1110, y: 530, w: 8, h: 170 },
+  { x: 1110, y: 800, w: 8, h: 186 },
 ];
 
 const FURNITURE = [
-  // ── Work Area: Modern desks with monitors ──
+  // ── Work Area: 3x3 desks + standing desks ──
   { type: "modern_desk", x: 60,  y: 60,  w: 100, h: 50 },
-  { type: "modern_desk", x: 60,  y: 180, w: 100, h: 50 },
-  { type: "modern_desk", x: 60,  y: 300, w: 100, h: 50 },
-  { type: "modern_desk", x: 240, y: 60,  w: 100, h: 50 },
-  { type: "modern_desk", x: 240, y: 180, w: 100, h: 50 },
-  { type: "modern_desk", x: 240, y: 300, w: 100, h: 50 },
-  // Standing desks
-  { type: "standing_desk", x: 440, y: 80,  w: 70, h: 40 },
-  { type: "standing_desk", x: 440, y: 200, w: 70, h: 40 },
+  { type: "modern_desk", x: 60,  y: 200, w: 100, h: 50 },
+  { type: "modern_desk", x: 60,  y: 340, w: 100, h: 50 },
+  { type: "modern_desk", x: 280, y: 60,  w: 100, h: 50 },
+  { type: "modern_desk", x: 280, y: 200, w: 100, h: 50 },
+  { type: "modern_desk", x: 280, y: 340, w: 100, h: 50 },
+  { type: "modern_desk", x: 500, y: 60,  w: 100, h: 50 },
+  { type: "modern_desk", x: 500, y: 200, w: 100, h: 50 },
+  { type: "modern_desk", x: 500, y: 340, w: 100, h: 50 },
   // Desk chairs
-  { type: "office_chair", x: 95, y: 115, w: 22, h: 22 },
-  { type: "office_chair", x: 95, y: 235, w: 22, h: 22 },
-  { type: "office_chair", x: 95, y: 355, w: 22, h: 22 },
-  { type: "office_chair", x: 275, y: 115, w: 22, h: 22 },
-  { type: "office_chair", x: 275, y: 235, w: 22, h: 22 },
-  { type: "office_chair", x: 275, y: 355, w: 22, h: 22 },
+  { type: "office_chair", x: 95,  y: 120, w: 22, h: 22 },
+  { type: "office_chair", x: 95,  y: 260, w: 22, h: 22 },
+  { type: "office_chair", x: 95,  y: 400, w: 22, h: 22 },
+  { type: "office_chair", x: 315, y: 120, w: 22, h: 22 },
+  { type: "office_chair", x: 315, y: 260, w: 22, h: 22 },
+  { type: "office_chair", x: 315, y: 400, w: 22, h: 22 },
+  { type: "office_chair", x: 535, y: 120, w: 22, h: 22 },
+  { type: "office_chair", x: 535, y: 260, w: 22, h: 22 },
+  { type: "office_chair", x: 535, y: 400, w: 22, h: 22 },
+  // Standing desks
+  { type: "standing_desk", x: 690, y: 80,  w: 70, h: 40 },
+  { type: "standing_desk", x: 690, y: 240, w: 70, h: 40 },
+  { type: "standing_desk", x: 690, y: 400, w: 70, h: 40 },
 
   // ── Meeting Room ──
-  { type: "conf_table", x: 940, y: 100, w: 180, h: 100 },
-  { type: "office_chair", x: 960,  y: 70,  w: 22, h: 22 },
-  { type: "office_chair", x: 1010, y: 70,  w: 22, h: 22 },
-  { type: "office_chair", x: 1060, y: 70,  w: 22, h: 22 },
-  { type: "office_chair", x: 960,  y: 210, w: 22, h: 22 },
-  { type: "office_chair", x: 1010, y: 210, w: 22, h: 22 },
-  { type: "office_chair", x: 1060, y: 210, w: 22, h: 22 },
-  { type: "tv_wall", x: 1000, y: 18, w: 80, h: 10 },
-  { type: "whiteboard", x: 880, y: 300, w: 120, h: 10 },
-  // Phone booth
-  { type: "phone_booth", x: 1200, y: 60, w: 60, h: 70 },
-  { type: "phone_booth", x: 1290, y: 60, w: 60, h: 70 },
+  { type: "conf_table", x: 960, y: 130, w: 220, h: 120 },
+  { type: "office_chair", x: 990,  y: 95,  w: 22, h: 22 },
+  { type: "office_chair", x: 1050, y: 95,  w: 22, h: 22 },
+  { type: "office_chair", x: 1110, y: 95,  w: 22, h: 22 },
+  { type: "office_chair", x: 990,  y: 260, w: 22, h: 22 },
+  { type: "office_chair", x: 1050, y: 260, w: 22, h: 22 },
+  { type: "office_chair", x: 1110, y: 260, w: 22, h: 22 },
+  { type: "tv_wall", x: 1030, y: 20, w: 100, h: 12 },
+  { type: "whiteboard", x: 860, y: 360, w: 160, h: 12 },
+  { type: "phone_booth", x: 1320, y: 60,  w: 60, h: 70 },
+  { type: "phone_booth", x: 1420, y: 60,  w: 60, h: 70 },
 
-  // ── Kitchen / Break Area ──
-  { type: "counter_long", x: 20, y: 460, w: 200, h: 36 },
-  { type: "coffee_machine", x: 240, y: 460, w: 44, h: 36 },
-  { type: "fridge", x: 300, y: 456, w: 40, h: 44 },
-  { type: "vending", x: 360, y: 456, w: 44, h: 44 },
-  { type: "microwave", x: 420, y: 462, w: 36, h: 30 },
-  // Dining tables
-  { type: "dining_table", x: 80,  y: 560, w: 80, h: 50 },
-  { type: "dining_table", x: 80,  y: 680, w: 80, h: 50 },
-  { type: "stool", x: 70,  y: 615, w: 18, h: 18 },
-  { type: "stool", x: 100, y: 615, w: 18, h: 18 },
-  { type: "stool", x: 130, y: 615, w: 18, h: 18 },
-  { type: "stool", x: 70,  y: 735, w: 18, h: 18 },
-  { type: "stool", x: 100, y: 735, w: 18, h: 18 },
-  { type: "stool", x: 130, y: 735, w: 18, h: 18 },
+  // ── Kitchen ──
+  { type: "counter_long", x: 30, y: 545, w: 200, h: 36 },
+  { type: "coffee_machine", x: 250, y: 545, w: 44, h: 36 },
+  { type: "fridge", x: 310, y: 541, w: 40, h: 44 },
+  { type: "vending", x: 370, y: 541, w: 44, h: 44 },
+  { type: "dining_table", x: 60,  y: 650, w: 90, h: 50 },
+  { type: "dining_table", x: 60,  y: 800, w: 90, h: 50 },
+  { type: "stool", x: 50,  y: 710, w: 18, h: 18 },
+  { type: "stool", x: 85,  y: 710, w: 18, h: 18 },
+  { type: "stool", x: 120, y: 710, w: 18, h: 18 },
+  { type: "stool", x: 50,  y: 860, w: 18, h: 18 },
+  { type: "stool", x: 85,  y: 860, w: 18, h: 18 },
+  { type: "stool", x: 120, y: 860, w: 18, h: 18 },
+  { type: "microwave", x: 420, y: 547, w: 36, h: 30 },
 
-  // ── Lounge / Game Area ──
-  { type: "sofa", x: 620, y: 500, w: 140, h: 50 },
-  { type: "sofa", x: 620, y: 640, w: 140, h: 50 },
-  { type: "coffee_table", x: 650, y: 570, w: 80, h: 50 },
-  { type: "tv_stand", x: 580, y: 460, w: 100, h: 28 },
-  // Game area
-  { type: "pingpong", x: 900, y: 520, w: 120, h: 70 },
-  { type: "arcade", x: 1100, y: 470, w: 48, h: 44 },
-  { type: "arcade", x: 1170, y: 470, w: 48, h: 44 },
-  // Beanbags
-  { type: "beanbag", x: 840, y: 700, w: 40, h: 40 },
-  { type: "beanbag", x: 900, y: 740, w: 40, h: 40 },
-  { type: "beanbag", x: 960, y: 700, w: 40, h: 40 },
-  // Bookshelf wall
-  { type: "bookshelf", x: 1100, y: 700, w: 100, h: 28 },
-  { type: "bookshelf", x: 1220, y: 700, w: 100, h: 28 },
+  // ── Lounge ──
+  { type: "sofa", x: 520, y: 590, w: 140, h: 50 },
+  { type: "sofa", x: 520, y: 750, w: 140, h: 50 },
+  { type: "coffee_table", x: 540, y: 665, w: 100, h: 55 },
+  { type: "tv_stand", x: 530, y: 545, w: 100, h: 28 },
+  { type: "pingpong", x: 760, y: 600, w: 120, h: 70 },
+  { type: "arcade", x: 960, y: 560, w: 48, h: 44 },
+  { type: "arcade", x: 960, y: 640, w: 48, h: 44 },
+  { type: "beanbag", x: 760, y: 780, w: 40, h: 40 },
+  { type: "beanbag", x: 830, y: 820, w: 40, h: 40 },
+  { type: "beanbag", x: 900, y: 780, w: 40, h: 40 },
+
+  // ── Rest / Nap Room ──
+  { type: "bed", x: 1150, y: 590, w: 120, h: 65 },
+  { type: "bed", x: 1150, y: 730, w: 120, h: 65 },
+  { type: "bed", x: 1350, y: 590, w: 120, h: 65 },
+  { type: "bed", x: 1350, y: 730, w: 120, h: 65 },
+  { type: "bookshelf", x: 1150, y: 880, w: 100, h: 28 },
+  { type: "bookshelf", x: 1350, y: 880, w: 100, h: 28 },
+  { type: "nightstand", x: 1285, y: 610, w: 40, h: 30 },
+  { type: "nightstand", x: 1285, y: 750, w: 40, h: 30 },
 
   // ── Decorative ──
   { type: "plant_big", x: 24,   y: 24,   w: 30, h: 30 },
-  { type: "plant_big", x: 810,  y: 24,   w: 30, h: 30 },
-  { type: "plant_big", x: 24,   y: 840,  w: 30, h: 30 },
-  { type: "plant_big", x: 1340, y: 24,   w: 30, h: 30 },
-  { type: "plant_big", x: 1340, y: 840,  w: 30, h: 30 },
-  { type: "plant_big", x: 540,  y: 460,  w: 30, h: 30 },
-  { type: "plant_small", x: 810, y: 400, w: 22, h: 22 },
-  { type: "plant_small", x: 420, y: 24,  w: 22, h: 22 },
+  { type: "plant_big", x: 790,  y: 24,   w: 30, h: 30 },
+  { type: "plant_big", x: 24,   y: 930,  w: 30, h: 30 },
+  { type: "plant_big", x: 1540, y: 24,   w: 30, h: 30 },
+  { type: "plant_big", x: 1540, y: 930,  w: 30, h: 30 },
+  { type: "plant_big", x: 1540, y: 540,  w: 30, h: 30 },
+  { type: "plant_small", x: 790, y: 420, w: 22, h: 22 },
+  { type: "plant_small", x: 450, y: 540, w: 22, h: 22 },
+  { type: "plant_small", x: 1080, y: 540, w: 22, h: 22 },
   // Rugs
-  { type: "rug", x: 600, y: 490, w: 180, h: 220, noCollision: true },
-  { type: "rug", x: 920, y: 90,  w: 220, h: 130, noCollision: true },
-  { type: "rug", x: 860, y: 670, w: 180, h: 120, noCollision: true },
+  { type: "rug", x: 500, y: 575, w: 180, h: 250, noCollision: true },
+  { type: "rug", x: 940, y: 120, w: 260, h: 150, noCollision: true },
+  { type: "rug", x: 730, y: 760, w: 240, h: 120, noCollision: true },
+  { type: "rug", x: 1140, y: 560, w: 180, h: 120, noCollision: true },
+  { type: "rug", x: 1340, y: 560, w: 180, h: 120, noCollision: true },
+];
+
+// Throwable props (small items near furniture)
+const THROWABLE_PROPS = [
+  { id: "mug1", type: "mug",     x: 140, y: 78 },
+  { id: "mug2", type: "mug",     x: 360, y: 78 },
+  { id: "mug3", type: "mug",     x: 580, y: 78 },
+  { id: "paper1", type: "paper", x: 200, y: 230 },
+  { id: "paper2", type: "paper", x: 420, y: 370 },
+  { id: "cush1", type: "cushion", x: 590, y: 605 },
+  { id: "cush2", type: "cushion", x: 590, y: 765 },
+  { id: "book1", type: "book",   x: 1190, y: 898 },
+  { id: "book2", type: "book",   x: 1390, y: 898 },
+  { id: "mug4", type: "mug",     x: 100, y: 665 },
 ];
 
 // ═══════════════════════════════════════════
-//  FLOOR & WALL RENDERING
+//  RENDERING HELPERS
 // ═══════════════════════════════════════════
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+}
+
 function drawFloor(ctx) {
-  // Base
   ctx.fillStyle = "#e0d6c8";
   ctx.fillRect(0, 0, MAP.width, MAP.height);
-  // Zones
   for (const z of FLOOR_ZONES) {
     ctx.fillStyle = z.color;
     ctx.fillRect(z.x, z.y, z.w, z.h);
@@ -507,6 +552,13 @@ function drawFloor(ctx) {
   for (let c = 0; c <= MAP.width / MAP.tileSize; c++) {
     ctx.beginPath(); ctx.moveTo(c * MAP.tileSize, 0); ctx.lineTo(c * MAP.tileSize, MAP.height); ctx.stroke();
   }
+  // Zone labels
+  ctx.font = "bold 32px 'Segoe UI', system-ui";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const label of ZONE_LABELS) {
+    ctx.fillStyle = "rgba(0,0,0,0.05)";
+    ctx.fillText(label.text, label.x, label.y);
+  }
 }
 
 function drawWalls(ctx) {
@@ -518,81 +570,59 @@ function drawWalls(ctx) {
   }
 }
 
-// ═══════════════════════════════════════════
-//  FURNITURE RENDERING
-// ═══════════════════════════════════════════
 function drawFurniture(ctx, item) {
   const { type, x, y, w, h } = item;
   switch (type) {
     case "modern_desk":
-      // White desk surface
       ctx.fillStyle = "#f0ebe5"; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = "#d9d2c9"; ctx.fillRect(x, y + h - 3, w, 3);
-      // Metal legs
       ctx.fillStyle = "#888"; ctx.fillRect(x + 4, y + h, 3, 4); ctx.fillRect(x + w - 7, y + h, 3, 4);
-      // Monitor
       ctx.fillStyle = "#222"; ctx.fillRect(x + w/2 - 16, y + 4, 32, 22);
       ctx.fillStyle = "#3a7bd5"; ctx.fillRect(x + w/2 - 14, y + 6, 28, 17);
-      ctx.fillStyle = "#444"; ctx.fillRect(x + w/2 - 3, y + 26, 6, 3);
-      ctx.fillRect(x + w/2 - 10, y + 28, 20, 2);
-      // Keyboard
+      ctx.fillStyle = "#444"; ctx.fillRect(x + w/2 - 3, y + 26, 6, 3); ctx.fillRect(x + w/2 - 10, y + 28, 20, 2);
       ctx.fillStyle = "#ccc"; ctx.fillRect(x + w/2 - 18, y + 34, 36, 10);
-      // Mouse
       ctx.fillStyle = "#bbb"; ctx.fillRect(x + w/2 + 22, y + 36, 10, 7);
       break;
-
     case "standing_desk":
       ctx.fillStyle = "#f0ebe5"; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = "#d9d2c9"; ctx.fillRect(x, y + h - 2, w, 2);
-      // Thin legs
       ctx.fillStyle = "#666"; ctx.fillRect(x + 6, y + h, 2, 8); ctx.fillRect(x + w - 8, y + h, 2, 8);
-      // Laptop
       ctx.fillStyle = "#555"; ctx.fillRect(x + w/2 - 14, y + 6, 28, 18);
       ctx.fillStyle = "#4a90d9"; ctx.fillRect(x + w/2 - 12, y + 8, 24, 14);
       break;
-
     case "office_chair":
       ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(x + w/2, y + h/2, w/2 - 1, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "#444"; ctx.beginPath(); ctx.arc(x + w/2, y + h/2, w/2 - 4, 0, Math.PI * 2); ctx.fill();
       break;
-
     case "conf_table":
       ctx.fillStyle = "#6a5a4a"; roundRect(ctx, x, y, w, h, 12); ctx.fill();
       ctx.fillStyle = "#7a6a5a"; roundRect(ctx, x + 3, y + 3, w - 6, h - 6, 10); ctx.fill();
       break;
-
     case "tv_wall":
       ctx.fillStyle = "#111"; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = "#2a6ad4"; ctx.fillRect(x + 2, y + 1, w - 4, h - 2);
       break;
-
     case "whiteboard":
       ctx.fillStyle = "#f5f5f5"; ctx.fillRect(x, y, w, h);
       ctx.strokeStyle = "#ccc"; ctx.lineWidth = 1; ctx.strokeRect(x, y, w, h);
       ctx.strokeStyle = "#4a90d9"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x + 8, y + 3); ctx.lineTo(x + 60, y + 3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 8, y + 3); ctx.lineTo(x + 80, y + 3); ctx.stroke();
       ctx.strokeStyle = "#e74c3c";
-      ctx.beginPath(); ctx.moveTo(x + 8, y + 7); ctx.lineTo(x + 45, y + 7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 8, y + 7); ctx.lineTo(x + 55, y + 7); ctx.stroke();
       break;
-
     case "phone_booth":
       ctx.fillStyle = "rgba(100,140,180,0.25)"; ctx.fillRect(x, y, w, h);
       ctx.strokeStyle = "#7a9ab5"; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
-      // Small desk inside
       ctx.fillStyle = "#d9d2c9"; ctx.fillRect(x + 8, y + 30, w - 16, 14);
-      // Chair
       ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(x + w/2, y + 55, 8, 0, Math.PI * 2); ctx.fill();
       break;
-
     case "counter_long":
       ctx.fillStyle = "#e0e0e0"; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = "#ccc"; ctx.fillRect(x, y + h - 3, w, 3);
-      // Sink
       ctx.fillStyle = "#bbb"; ctx.fillRect(x + 80, y + 8, 30, 18);
       ctx.fillStyle = "#999"; ctx.fillRect(x + 84, y + 10, 22, 14);
       ctx.fillStyle = "#ccc"; ctx.fillRect(x + 93, y + 4, 4, 6);
       break;
-
     case "coffee_machine":
       ctx.fillStyle = "#333"; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = "#444"; ctx.fillRect(x + 3, y + 3, w - 6, 10);
@@ -600,107 +630,94 @@ function drawFurniture(ctx, item) {
       ctx.fillStyle = "#777"; ctx.fillRect(x + 12, y + 18, 20, 14);
       ctx.fillStyle = "#3a1a0a"; ctx.fillRect(x + 14, y + 20, 16, 10);
       break;
-
     case "fridge":
       ctx.fillStyle = "#e8e8e8"; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = "#ddd"; ctx.fillRect(x, y + h * 0.6, w, 2);
-      ctx.fillStyle = "#bbb"; ctx.fillRect(x + w - 6, y + 8, 3, 10);
-      ctx.fillRect(x + w - 6, y + h * 0.6 + 6, 3, 8);
+      ctx.fillStyle = "#bbb"; ctx.fillRect(x + w - 6, y + 8, 3, 10); ctx.fillRect(x + w - 6, y + h * 0.6 + 6, 3, 8);
       break;
-
     case "vending":
       ctx.fillStyle = "#2c3e50"; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = "#34495e"; ctx.fillRect(x + 4, y + 4, w - 8, h * 0.6);
-      // Drink colors
-      const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6"];
-      for (let i = 0; i < 5; i++) {
-        ctx.fillStyle = colors[i];
-        ctx.fillRect(x + 6 + i * 7, y + 6, 5, 12);
-      }
-      // Slot
+      const vColors = ["#e74c3c","#3498db","#2ecc71","#f39c12","#9b59b6"];
+      for (let i = 0; i < 5; i++) { ctx.fillStyle = vColors[i]; ctx.fillRect(x + 6 + i * 7, y + 6, 5, 12); }
       ctx.fillStyle = "#1a252f"; ctx.fillRect(x + 10, y + h * 0.7, w - 20, 10);
       break;
-
     case "microwave":
       ctx.fillStyle = "#ddd"; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = "#333"; ctx.fillRect(x + 3, y + 3, w * 0.65, h - 6);
       ctx.fillStyle = "#555"; ctx.fillRect(x + 5, y + 5, w * 0.65 - 4, h - 10);
       ctx.fillStyle = "#aaa"; ctx.fillRect(x + w * 0.72, y + 6, 6, 6);
       break;
-
     case "dining_table":
       ctx.fillStyle = "#f0ebe5"; roundRect(ctx, x, y, w, h, 6); ctx.fill();
-      ctx.fillStyle = "#888";
-      ctx.fillRect(x + 6, y + h, 3, 3); ctx.fillRect(x + w - 9, y + h, 3, 3);
+      ctx.fillStyle = "#888"; ctx.fillRect(x + 6, y + h, 3, 3); ctx.fillRect(x + w - 9, y + h, 3, 3);
       break;
-
     case "stool":
       ctx.fillStyle = "#666"; ctx.beginPath(); ctx.arc(x + w/2, y + h/2, w/2, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "#777"; ctx.beginPath(); ctx.arc(x + w/2, y + h/2, w/2 - 3, 0, Math.PI * 2); ctx.fill();
       break;
-
     case "sofa":
       ctx.fillStyle = "#5c6bc0"; roundRect(ctx, x, y, w, h, 6); ctx.fill();
       ctx.fillStyle = "#7986cb"; roundRect(ctx, x + 4, y + 10, w - 8, h - 12, 4); ctx.fill();
       ctx.fillStyle = "#5c6bc0"; ctx.fillRect(x, y + 6, 10, h - 8); ctx.fillRect(x + w - 10, y + 6, 10, h - 8);
-      // Cushion lines
       ctx.strokeStyle = "rgba(0,0,0,0.08)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(x + w/3, y + 12); ctx.lineTo(x + w/3, y + h - 4); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x + w*2/3, y + 12); ctx.lineTo(x + w*2/3, y + h - 4); ctx.stroke();
       break;
-
     case "coffee_table":
       ctx.fillStyle = "#8d6e63"; roundRect(ctx, x, y, w, h, 4); ctx.fill();
       ctx.fillStyle = "#795548"; roundRect(ctx, x + 2, y + 2, w - 4, h - 4, 3); ctx.fill();
-      // Magazines
       ctx.fillStyle = "#e74c3c"; ctx.fillRect(x + 10, y + 10, 16, 12);
       ctx.fillStyle = "#3498db"; ctx.fillRect(x + 30, y + 14, 14, 10);
       break;
-
     case "tv_stand":
       ctx.fillStyle = "#5d4037"; ctx.fillRect(x, y + 16, w, 12);
-      // TV
       ctx.fillStyle = "#111"; ctx.fillRect(x + 10, y, w - 20, 18);
       ctx.fillStyle = "#1a1a2e"; ctx.fillRect(x + 12, y + 1, w - 24, 15);
       break;
-
     case "pingpong":
       ctx.fillStyle = "#1b5e20"; roundRect(ctx, x, y, w, h, 4); ctx.fill();
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(x + w/2, y + 4); ctx.lineTo(x + w/2, y + h - 4); ctx.stroke();
-      // Net
       ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.fillRect(x + w/2 - 1, y + 2, 2, h - 4);
-      // Legs
-      ctx.fillStyle = "#333";
-      ctx.fillRect(x + 6, y + h, 3, 4); ctx.fillRect(x + w - 9, y + h, 3, 4);
+      ctx.fillStyle = "#333"; ctx.fillRect(x + 6, y + h, 3, 4); ctx.fillRect(x + w - 9, y + h, 3, 4);
       break;
-
     case "arcade":
       ctx.fillStyle = "#1a237e"; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = "#283593"; ctx.fillRect(x + 4, y + 4, w - 8, h * 0.5);
-      // Screen glow
       ctx.fillStyle = "#4fc3f7"; ctx.fillRect(x + 6, y + 6, w - 12, h * 0.5 - 4);
-      // Controls
       ctx.fillStyle = "#333"; ctx.fillRect(x + 8, y + h * 0.6, w - 16, h * 0.3);
       ctx.fillStyle = "#e74c3c"; ctx.beginPath(); ctx.arc(x + w/2 + 6, y + h * 0.7, 3, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "#4caf50"; ctx.beginPath(); ctx.arc(x + w/2 - 6, y + h * 0.7, 3, 0, Math.PI * 2); ctx.fill();
       break;
-
     case "beanbag":
       ctx.fillStyle = "#e8a060"; ctx.beginPath(); ctx.ellipse(x + w/2, y + h/2, w/2, h/2.4, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "rgba(0,0,0,0.06)"; ctx.beginPath(); ctx.ellipse(x + w/2 + 2, y + h/2 + 2, w/3, h/3.5, 0, 0, Math.PI * 2); ctx.fill();
       break;
-
     case "bookshelf":
       ctx.fillStyle = "#5d4037"; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = "#4e342e"; ctx.fillRect(x, y + h/3, w, 2); ctx.fillRect(x, y + h*2/3, w, 2);
       const bkColors = ["#e74c3c","#4a90d9","#2ecc71","#f39c12","#9b59b6","#e67e22","#1abc9c","#e91e63","#00bcd4","#ff5722"];
-      for (let i = 0; i < Math.floor(w / 10); i++) {
-        ctx.fillStyle = bkColors[i % bkColors.length];
-        ctx.fillRect(x + 3 + i * 10, y + 2, 8, h/3 - 4);
-      }
+      for (let i = 0; i < Math.floor(w / 10); i++) { ctx.fillStyle = bkColors[i % bkColors.length]; ctx.fillRect(x + 3 + i * 10, y + 2, 8, h/3 - 4); }
       break;
-
+    case "bed":
+      // Frame
+      ctx.fillStyle = "#8d6e63"; roundRect(ctx, x, y, w, h, 4); ctx.fill();
+      // Mattress
+      ctx.fillStyle = "#c5cae9"; roundRect(ctx, x + 3, y + 3, w - 6, h - 6, 3); ctx.fill();
+      // Pillow
+      ctx.fillStyle = "#e8e5e0"; roundRect(ctx, x + w/2 - 18, y + 6, 36, 16, 4); ctx.fill();
+      // Blanket
+      ctx.fillStyle = "#7986cb"; roundRect(ctx, x + 6, y + h * 0.4, w - 12, h * 0.5, 3); ctx.fill();
+      ctx.fillStyle = "#5c6bc0"; ctx.fillRect(x + 6, y + h * 0.4, w - 12, 3);
+      break;
+    case "nightstand":
+      ctx.fillStyle = "#8d6e63"; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#795548"; ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+      // Lamp
+      ctx.fillStyle = "#ffeb3b"; ctx.beginPath(); ctx.arc(x + w/2, y - 4, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#f9a825"; ctx.fillRect(x + w/2 - 2, y - 2, 4, 6);
+      break;
     case "plant_big":
       ctx.fillStyle = "#5d4037"; ctx.fillRect(x + 7, y + 16, 16, 14);
       ctx.fillStyle = "#4e342e"; ctx.fillRect(x + 5, y + 14, 20, 4);
@@ -709,13 +726,11 @@ function drawFurniture(ctx, item) {
       ctx.beginPath(); ctx.arc(x + 19, y + 11, 7, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "#66bb6a"; ctx.beginPath(); ctx.arc(x + 15, y + 4, 6, 0, Math.PI * 2); ctx.fill();
       break;
-
     case "plant_small":
       ctx.fillStyle = "#5d4037"; ctx.fillRect(x + 5, y + 12, 12, 10);
       ctx.fillStyle = "#388e3c"; ctx.beginPath(); ctx.arc(x + 11, y + 7, 7, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "#4caf50"; ctx.beginPath(); ctx.arc(x + 11, y + 4, 5, 0, Math.PI * 2); ctx.fill();
       break;
-
     case "rug":
       ctx.fillStyle = "rgba(120,100,80,0.12)"; roundRect(ctx, x, y, w, h, 10); ctx.fill();
       ctx.strokeStyle = "rgba(120,100,80,0.2)"; ctx.lineWidth = 2;
@@ -724,17 +739,32 @@ function drawFurniture(ctx, item) {
   }
 }
 
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+function drawProp(ctx, prop) {
+  const { type, x, y } = prop;
+  switch (type) {
+    case "mug":
+      ctx.fillStyle = "#f5f0e8"; ctx.fillRect(x - 4, y - 6, 8, 8);
+      ctx.fillStyle = "#d4c8b8"; ctx.fillRect(x + 3, y - 4, 3, 4);
+      ctx.fillStyle = "#6d4c1a"; ctx.fillRect(x - 3, y - 5, 6, 2);
+      break;
+    case "paper":
+      ctx.fillStyle = "#f0ede5";
+      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#ccc"; ctx.lineWidth = 0.5; ctx.stroke();
+      break;
+    case "cushion":
+      ctx.fillStyle = "#e8a060"; roundRect(ctx, x - 7, y - 7, 14, 14, 3); ctx.fill();
+      ctx.fillStyle = "#d08030"; roundRect(ctx, x - 5, y - 5, 10, 10, 2); ctx.fill();
+      break;
+    case "book":
+      ctx.fillStyle = "#c0392b"; ctx.fillRect(x - 6, y - 4, 12, 8);
+      ctx.fillStyle = "#e74c3c"; ctx.fillRect(x - 5, y - 3, 10, 6);
+      break;
+  }
 }
 
 // ═══════════════════════════════════════════
-//  COLLISION
+//  COLLISION + A* PATHFINDING
 // ═══════════════════════════════════════════
 function checkCollision(px, py) {
   const box = { x: px - 6, y: py + 16, w: 12, h: 12 };
@@ -744,59 +774,186 @@ function checkCollision(px, py) {
 }
 function aabb(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
 
+const GRID_SIZE = 16;
+let navGrid = null, navCols = 0, navRows = 0;
+
+function buildNavGrid() {
+  navCols = Math.ceil(MAP.width / GRID_SIZE);
+  navRows = Math.ceil(MAP.height / GRID_SIZE);
+  navGrid = new Uint8Array(navCols * navRows);
+  for (let r = 0; r < navRows; r++) {
+    for (let c = 0; c < navCols; c++) {
+      const px = c * GRID_SIZE + GRID_SIZE / 2;
+      const py = r * GRID_SIZE + GRID_SIZE / 2;
+      navGrid[r * navCols + c] = checkCollision(px, py) ? 1 : 0;
+    }
+  }
+}
+
+// MinHeap for A*
+class MinHeap {
+  constructor() { this.d = []; }
+  push(v) { this.d.push(v); let i = this.d.length - 1; while (i > 0) { const p = (i-1)>>1; if (this.d[i].f >= this.d[p].f) break; [this.d[i],this.d[p]]=[this.d[p],this.d[i]]; i=p; } }
+  pop() { const t=this.d[0]; const l=this.d.pop(); if(this.d.length>0){this.d[0]=l;let i=0;const n=this.d.length;while(true){let m=i;const a=2*i+1,b=2*i+2;if(a<n&&this.d[a].f<this.d[m].f)m=a;if(b<n&&this.d[b].f<this.d[m].f)m=b;if(m===i)break;[this.d[i],this.d[m]]=[this.d[m],this.d[i]];i=m;}} return t; }
+  get size() { return this.d.length; }
+}
+
+function findPath(sx, sy, ex, ey) {
+  if (!navGrid) return null;
+  let sc = Math.floor(sx / GRID_SIZE), sr = Math.floor(sy / GRID_SIZE);
+  let ec = Math.floor(ex / GRID_SIZE), er = Math.floor(ey / GRID_SIZE);
+  sc = Math.max(0, Math.min(navCols-1, sc)); sr = Math.max(0, Math.min(navRows-1, sr));
+  ec = Math.max(0, Math.min(navCols-1, ec)); er = Math.max(0, Math.min(navRows-1, er));
+
+  // If end blocked, find nearest walkable
+  if (navGrid[er * navCols + ec]) {
+    const alt = nearestWalkable(ec, er);
+    if (!alt) return null;
+    ec = alt.c; er = alt.r;
+  }
+  if (navGrid[sr * navCols + sc]) {
+    const alt = nearestWalkable(sc, sr);
+    if (!alt) return null;
+    sc = alt.c; sr = alt.r;
+  }
+
+  const start = sr * navCols + sc, end = er * navCols + ec;
+  if (start === end) return [{ x: ex, y: ey }];
+
+  const DIRS = [[-1,0,10],[1,0,10],[0,-1,10],[0,1,10],[-1,-1,14],[1,-1,14],[-1,1,14],[1,1,14]];
+  const total = navCols * navRows;
+  const gScore = new Float32Array(total).fill(1e9);
+  const cameFrom = new Int32Array(total).fill(-1);
+  const closed = new Uint8Array(total);
+
+  gScore[start] = 0;
+  const open = new MinHeap();
+  open.push({ idx: start, f: octile(sc, sr, ec, er) });
+
+  while (open.size > 0) {
+    const cur = open.pop();
+    if (closed[cur.idx]) continue;
+    if (cur.idx === end) {
+      const path = [];
+      let n = end;
+      while (n !== start) {
+        const pr = Math.floor(n / navCols), pc = n % navCols;
+        path.unshift({ x: pc * GRID_SIZE + GRID_SIZE/2, y: pr * GRID_SIZE + GRID_SIZE/2 });
+        n = cameFrom[n];
+      }
+      // Replace last waypoint with actual target
+      if (path.length > 0) { path[path.length-1].x = ex; path[path.length-1].y = ey; }
+      return simplifyPath(path);
+    }
+    closed[cur.idx] = 1;
+    const cr = Math.floor(cur.idx / navCols), cc = cur.idx % navCols;
+
+    for (const [dr, dc, cost] of DIRS) {
+      const nr = cr + dr, nc = cc + dc;
+      if (nr < 0 || nr >= navRows || nc < 0 || nc >= navCols) continue;
+      const nIdx = nr * navCols + nc;
+      if (closed[nIdx] || navGrid[nIdx]) continue;
+      if (dr !== 0 && dc !== 0) {
+        if (navGrid[cr * navCols + nc] || navGrid[nr * navCols + cc]) continue;
+      }
+      const tentG = gScore[cur.idx] + cost;
+      if (tentG < gScore[nIdx]) {
+        cameFrom[nIdx] = cur.idx;
+        gScore[nIdx] = tentG;
+        open.push({ idx: nIdx, f: tentG + octile(nc, nr, ec, er) });
+      }
+    }
+  }
+  return null;
+}
+
+function octile(c1, r1, c2, r2) {
+  const dx = Math.abs(c2 - c1), dy = Math.abs(r2 - r1);
+  return 10 * (dx + dy) - 6 * Math.min(dx, dy);
+}
+
+function nearestWalkable(tc, tr) {
+  for (let rad = 1; rad < 30; rad++) {
+    for (let dr = -rad; dr <= rad; dr++) {
+      for (let dc = -rad; dc <= rad; dc++) {
+        if (Math.abs(dr) !== rad && Math.abs(dc) !== rad) continue;
+        const nr = tr + dr, nc = tc + dc;
+        if (nr >= 0 && nr < navRows && nc >= 0 && nc < navCols && !navGrid[nr * navCols + nc])
+          return { c: nc, r: nr };
+      }
+    }
+  }
+  return null;
+}
+
+function simplifyPath(path) {
+  if (path.length <= 2) return path;
+  const s = [path[0]];
+  for (let i = 1; i < path.length - 1; i++) {
+    const p = s[s.length - 1], n = path[i + 1];
+    if ((path[i].x - p.x) !== (n.x - path[i].x) || (path[i].y - p.y) !== (n.y - path[i].y))
+      s.push(path[i]);
+  }
+  s.push(path[path.length - 1]);
+  return s;
+}
+
 // ═══════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════
-let socket;
-let currentRoomCode = "";
-let localPlayer = null;
-const remotePlayers = new Map();
-const activeReactions = [];
-const chatBubbles = new Map(); // id -> {text, startTime}
-const keys = {};
-let gameRunning = false;
+var socket;
+var currentRoomCode = "";
+var localPlayer = null;
+var remotePlayers = new Map();
+var chatBubbles = new Map();
+var keys = {};
+var gameRunning = false;
 let selectedCharacter = 0;
 let lastTime = 0;
 let lastPositionSend = 0;
-let moveTarget = null; // {x, y} for click-to-move
-let currentCamX = 0, currentCamY = 0; // stored for click conversion
-let throwMode = false;
-const flyingPlayers = []; // { playerId, charIdx, name, fromX, fromY, toX, toY, startTime }
-const stunnedPlayers = new Map(); // playerId -> { startTime }
+let movePath = null; // Array of {x,y} waypoints
+let movePathIdx = 0;
+let moveTarget = null; // final destination for indicator
+let currentCamX = 0, currentCamY = 0;
+var throwMode = false;
+var hoverTarget = null; // { type, id, data }
+var flyingPlayers = [];
+var stunnedPlayers = new Map();
+var flyingProps = [];
+var wobblePlayers = new Map();
+var auraParticles = new Map();
 
-const SPEED = 140;
+const SPEED = 150;
 const POSITION_SEND_INTERVAL = 50;
 const BUBBLE_DURATION = 5000;
-const THROW_FLY_DURATION = 500; // ms for player to fly
-const STUN_DURATION = 1200; // ms for sit-down-get-up animation
+const THROW_FLY_DURATION = 500;
+const STUN_DURATION = 1200;
+const PROP_FLY_DURATION = 400;
+const WOBBLE_DURATION = 500;
+const THROW_RANGE = 80;
+const INTERACT_RANGE = 80;
 
 // ═══════════════════════════════════════════
-//  NOTIFICATION SOUND (Web Audio API)
+//  SOUNDS (Web Audio API)
 // ═══════════════════════════════════════════
 let audioCtx = null;
 function playNotificationSound() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
     osc.type = "sine";
     osc.frequency.setValueAtTime(880, audioCtx.currentTime);
     osc.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.06);
     gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.2);
+    osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.2);
   } catch (e) {}
 }
-
 function playThrowSound() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // Whoosh sound
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(audioCtx.destination);
     osc.type = "sawtooth";
     osc.frequency.setValueAtTime(200, audioCtx.currentTime);
@@ -806,39 +963,43 @@ function playThrowSound() {
     osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.2);
   } catch (e) {}
 }
-
 function playLandSound() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // Thud + comedic boing
-    const osc1 = audioCtx.createOscillator();
-    const gain1 = audioCtx.createGain();
-    osc1.connect(gain1); gain1.connect(audioCtx.destination);
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(120, audioCtx.currentTime);
-    osc1.frequency.setValueAtTime(80, audioCtx.currentTime + 0.05);
-    gain1.gain.setValueAtTime(0.2, audioCtx.currentTime);
-    gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-    osc1.start(audioCtx.currentTime); osc1.stop(audioCtx.currentTime + 0.15);
-    // Boing
-    const osc2 = audioCtx.createOscillator();
-    const gain2 = audioCtx.createGain();
-    osc2.connect(gain2); gain2.connect(audioCtx.destination);
-    osc2.type = "sine";
-    osc2.frequency.setValueAtTime(400, audioCtx.currentTime + 0.08);
-    osc2.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.25);
-    gain2.gain.setValueAtTime(0.08, audioCtx.currentTime + 0.08);
-    gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-    osc2.start(audioCtx.currentTime + 0.08); osc2.stop(audioCtx.currentTime + 0.3);
+    const o1 = audioCtx.createOscillator(); const g1 = audioCtx.createGain();
+    o1.connect(g1); g1.connect(audioCtx.destination); o1.type = "sine";
+    o1.frequency.setValueAtTime(120, audioCtx.currentTime);
+    o1.frequency.setValueAtTime(80, audioCtx.currentTime + 0.05);
+    g1.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    g1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    o1.start(audioCtx.currentTime); o1.stop(audioCtx.currentTime + 0.15);
+    const o2 = audioCtx.createOscillator(); const g2 = audioCtx.createGain();
+    o2.connect(g2); g2.connect(audioCtx.destination); o2.type = "sine";
+    o2.frequency.setValueAtTime(400, audioCtx.currentTime + 0.08);
+    o2.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.25);
+    g2.gain.setValueAtTime(0.08, audioCtx.currentTime + 0.08);
+    g2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    o2.start(audioCtx.currentTime + 0.08); o2.stop(audioCtx.currentTime + 0.3);
+  } catch (e) {}
+}
+function playHitSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+    osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.12);
   } catch (e) {}
 }
 
 // ═══════════════════════════════════════════
 //  ROOM CODE
 // ═══════════════════════════════════════════
-function getRoomCode() {
-  return "office";
-}
+function getRoomCode() { return "office"; }
 
 // ═══════════════════════════════════════════
 //  SPEECH BUBBLES
@@ -846,40 +1007,77 @@ function getRoomCode() {
 function drawChatBubble(ctx, x, y, text) {
   const maxLen = 28;
   const display = text.length > maxLen ? text.substring(0, maxLen) + "..." : text;
-
   ctx.font = "11px 'Segoe UI', system-ui, sans-serif";
-  const metrics = ctx.measureText(display);
-  const tw = metrics.width;
-  const pad = 8;
-  const bw = tw + pad * 2;
-  const bh = 22;
-  const bx = x - bw / 2;
-  const by = y - 42 - bh;
-
-  // Bubble background
+  const tw = ctx.measureText(display).width;
+  const pad = 8, bw = tw + pad * 2, bh = 22;
+  const bx = x - bw / 2, by = y - 42 - bh;
   ctx.fillStyle = "rgba(255,255,255,0.95)";
-  roundRect(ctx, bx, by, bw, bh, 8);
-  ctx.fill();
+  roundRect(ctx, bx, by, bw, bh, 8); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x - 5, by + bh); ctx.lineTo(x, by + bh + 6); ctx.lineTo(x + 5, by + bh); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.1)"; ctx.lineWidth = 1; roundRect(ctx, bx, by, bw, bh, 8); ctx.stroke();
+  ctx.fillStyle = "#333"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(display, x, by + bh / 2);
+}
 
-  // Tail
-  ctx.beginPath();
-  ctx.moveTo(x - 5, by + bh);
-  ctx.lineTo(x, by + bh + 6);
-  ctx.lineTo(x + 5, by + bh);
-  ctx.closePath();
-  ctx.fill();
+// ═══════════════════════════════════════════
+//  EMOJI AURA PARTICLE SYSTEM
+// ═══════════════════════════════════════════
+function spawnAuraParticle(emoji, px, py) {
+  const a = Math.random() * Math.PI * 2;
+  const r = 8 + Math.random() * 14;
+  switch (emoji) {
+    case "😀": return { x: px + Math.cos(a)*r, y: py + Math.sin(a)*8, vx: (Math.random()-0.5)*20, vy: -15-Math.random()*20, life: 0.6+Math.random()*0.4, ml: 1, color: "#FFD700", size: 2.5, type: "dot" };
+    case "🔥": return { x: px + (Math.random()-0.5)*16, y: py + 15, vx: (Math.random()-0.5)*12, vy: -35-Math.random()*25, life: 0.4+Math.random()*0.3, ml: 0.7, color: Math.random()>0.5?"#ff6600":"#ffaa00", size: 3, type: "dot" };
+    case "❤️": return { x: px + Math.cos(a)*r, y: py + Math.sin(a)*6, vx: Math.cos(a)*10, vy: -8-Math.random()*8, life: 0.8+Math.random()*0.4, ml: 1.2, color: "#ff4081", size: 1, type: "heart" };
+    case "😢": return { x: px + (Math.random()-0.5)*14, y: py - 10, vx: (Math.random()-0.5)*5, vy: 20+Math.random()*15, life: 0.5+Math.random()*0.3, ml: 0.8, color: Math.random()>0.5?"#42a5f5":"#64b5f6", size: 2.5, type: "drop" };
+    case "⚡": return { x: px + (Math.random()-0.5)*24, y: py + (Math.random()-0.5)*24, vx: (Math.random()-0.5)*60, vy: (Math.random()-0.5)*60, life: 0.08+Math.random()*0.12, ml: 0.2, color: Math.random()>0.3?"#FFEB3B":"#fff", size: 2, type: "dot" };
+  }
+  return null;
+}
 
-  // Border
-  ctx.strokeStyle = "rgba(0,0,0,0.1)";
-  ctx.lineWidth = 1;
-  roundRect(ctx, bx, by, bw, bh, 8);
-  ctx.stroke();
+function updateAura(playerId, emoji, px, py, dt) {
+  if (!auraParticles.has(playerId)) auraParticles.set(playerId, []);
+  const parts = auraParticles.get(playerId);
+  // Spawn
+  const rate = emoji === "⚡" ? 6 : 3;
+  for (let i = 0; i < rate; i++) {
+    const p = spawnAuraParticle(emoji, px, py);
+    if (p) parts.push(p);
+  }
+  // Update
+  const dts = dt / 1000;
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.life -= dts;
+    if (p.life <= 0) { parts.splice(i, 1); continue; }
+    p.x += p.vx * dts;
+    p.y += p.vy * dts;
+  }
+}
 
-  // Text
-  ctx.fillStyle = "#333";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(display, x, by + bh / 2);
+function drawAura(ctx, playerId) {
+  const parts = auraParticles.get(playerId);
+  if (!parts) return;
+  for (const p of parts) {
+    const alpha = Math.max(0, p.life / p.ml);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    if (p.type === "heart") {
+      ctx.font = `${8 + p.size * 3}px serif`;
+      ctx.textAlign = "center";
+      ctx.fillText("❤", p.x, p.y);
+    } else if (p.type === "drop") {
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - p.size);
+      ctx.quadraticCurveTo(p.x + p.size, p.y, p.x, p.y + p.size);
+      ctx.quadraticCurveTo(p.x - p.size, p.y, p.x, p.y - p.size);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
 }
 
 // ═══════════════════════════════════════════
@@ -928,7 +1126,7 @@ function joinRoom() {
     document.getElementById("game-area").style.display = "block";
     document.getElementById("chat-panel").style.display = "flex";
     document.getElementById("overlay").style.display = "none";
-    updateHUD(); resizeCanvas();
+    updateHUD(); resizeCanvas(); buildNavGrid();
     if (!gameRunning) { gameRunning = true; requestAnimationFrame(gameLoop); }
   });
 
@@ -944,7 +1142,7 @@ function joinRoom() {
 
   socket.on("player-left", ({ id }) => {
     const p = remotePlayers.get(id);
-    if (p) { addSystemMessage(p.name + " left"); remotePlayers.delete(id); chatBubbles.delete(id); updateHUD(); }
+    if (p) { addSystemMessage(p.name + " left"); remotePlayers.delete(id); chatBubbles.delete(id); auraParticles.delete(id); updateHUD(); }
   });
 
   socket.on("chat-message", ({ id, name: sn, text }) => {
@@ -953,35 +1151,30 @@ function joinRoom() {
     if (id !== socket.id) playNotificationSound();
   });
 
-  socket.on("emoji-reaction", ({ id, emoji }) => {
-    const player = id === socket.id ? localPlayer : remotePlayers.get(id);
-    if (player) activeReactions.push({ playerId: id, emoji, startTime: Date.now(), x: player.x, y: player.y });
+  socket.on("emoji-toggle", ({ id, emoji }) => {
+    const target = id === socket.id ? localPlayer : remotePlayers.get(id);
+    if (target) target.activeEmoji = emoji;
+    if (!emoji) auraParticles.delete(id);
+    if (id === socket.id) updateEmojiButtons();
   });
 
   socket.on("throw-object", ({ id, targetId, fromX, fromY, toX, toY }) => {
-    // Find target player info
     const isMe = targetId === socket.id;
     const target = isMe ? localPlayer : remotePlayers.get(targetId);
     if (!target) return;
-
-    flyingPlayers.push({
-      playerId: targetId, charIdx: target.character, name: target.name,
-      fromX, fromY, toX, toY, startTime: Date.now()
-    });
+    flyingPlayers.push({ playerId: targetId, charIdx: target.character, name: target.name, fromX, fromY, toX, toY, startTime: Date.now() });
     playThrowSound();
-
     setTimeout(() => {
       stunnedPlayers.set(targetId, { startTime: Date.now() });
       playLandSound();
-      if (isMe && localPlayer) {
-        // I got thrown! Move me to landing spot
-        localPlayer.x = toX; localPlayer.y = toY;
-        moveTarget = null; // cancel movement
-      } else {
-        const p = remotePlayers.get(targetId);
-        if (p) { p.x = toX; p.y = toY; p.targetX = toX; p.targetY = toY; }
-      }
+      if (isMe && localPlayer) { localPlayer.x = toX; localPlayer.y = toY; movePath = null; moveTarget = null; }
+      else { const p = remotePlayers.get(targetId); if (p) { p.x = toX; p.y = toY; p.targetX = toX; p.targetY = toY; } }
     }, THROW_FLY_DURATION);
+  });
+
+  socket.on("throw-prop", ({ id, propType, fromX, fromY, toX, toY }) => {
+    flyingProps.push({ propType, fromX, fromY, toX, toY, startTime: Date.now(), throwerId: id });
+    playThrowSound();
   });
 
   socket.on("disconnect", () => {
@@ -1001,21 +1194,14 @@ function joinRoom() {
 //  CHAT
 // ═══════════════════════════════════════════
 function addChatMessage(name, text, isSelf) {
-  const div = document.createElement("div");
-  div.className = "chat-msg";
-  const nameSpan = document.createElement("span");
-  nameSpan.className = "chat-name";
-  nameSpan.textContent = name;
-  div.appendChild(nameSpan);
-  div.appendChild(document.createTextNode(": " + text));
+  const div = document.createElement("div"); div.className = "chat-msg";
+  const nameSpan = document.createElement("span"); nameSpan.className = "chat-name"; nameSpan.textContent = name;
+  div.appendChild(nameSpan); div.appendChild(document.createTextNode(": " + text));
   document.getElementById("chat-messages").appendChild(div);
   document.getElementById("chat-messages").scrollTop = 999999;
 }
-
 function addSystemMessage(text) {
-  const div = document.createElement("div");
-  div.className = "chat-msg system";
-  div.textContent = text;
+  const div = document.createElement("div"); div.className = "chat-msg system"; div.textContent = text;
   document.getElementById("chat-messages").appendChild(div);
   document.getElementById("chat-messages").scrollTop = 999999;
 }
@@ -1030,68 +1216,109 @@ document.getElementById("chat-input").addEventListener("keydown", (e) => {
 });
 
 // ═══════════════════════════════════════════
-//  EMOJI
+//  EMOJI TOGGLE
 // ═══════════════════════════════════════════
 document.querySelectorAll(".emoji-btn").forEach(btn => {
-  if (btn.id === "throw-btn") return; // handled separately
-  btn.addEventListener("click", () => { if (socket) socket.emit("emoji-reaction", { emoji: btn.dataset.emoji }); });
+  if (btn.id === "throw-btn") return;
+  btn.addEventListener("click", () => {
+    if (socket) socket.emit("emoji-toggle", { emoji: btn.dataset.emoji });
+  });
 });
 
+function updateEmojiButtons() {
+  const myEmoji = localPlayer ? localPlayer.activeEmoji : null;
+  document.querySelectorAll(".emoji-btn").forEach(btn => {
+    if (btn.id === "throw-btn") return;
+    btn.classList.toggle("emoji-active", btn.dataset.emoji === myEmoji);
+  });
+}
+
 // ═══════════════════════════════════════════
-//  THROW (Throw a Player!)
+//  THROW SYSTEM (Players & Props)
 // ═══════════════════════════════════════════
+function getNearbyThrowables() {
+  if (!localPlayer) return [];
+  const result = [];
+  for (const [id, p] of remotePlayers) {
+    const dx = p.x - localPlayer.x, dy = p.y - localPlayer.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < THROW_RANGE && !isPlayerFlying(id) && !stunnedPlayers.has(id))
+      result.push({ type: "player", id, data: p, dist });
+  }
+  for (const prop of THROWABLE_PROPS) {
+    const dx = prop.x - localPlayer.x, dy = prop.y - localPlayer.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < INTERACT_RANGE)
+      result.push({ type: "prop", id: prop.id, data: prop, dist });
+  }
+  return result;
+}
+
 document.getElementById("throw-btn").addEventListener("click", () => {
+  const nearby = getNearbyThrowables();
+  if (nearby.length === 0) return;
   throwMode = !throwMode;
   document.getElementById("throw-btn").classList.toggle("throw-active", throwMode);
   document.getElementById("game-area").style.cursor = throwMode ? "crosshair" : "pointer";
+  if (!throwMode) hoverTarget = null;
 });
-
-function findNearestPlayer(worldX, worldY) {
-  let closest = null, closestDist = 50; // max 50px pick range
-  for (const [id, p] of remotePlayers) {
-    const dx = p.x - worldX, dy = p.y - worldY;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    if (dist < closestDist) { closestDist = dist; closest = { id, player: p }; }
-  }
-  return closest;
-}
 
 function throwPlayer(targetId, targetPlayer) {
   if (!localPlayer || !socket) return;
-  // Throw direction: away from thrower
-  const dx = targetPlayer.x - localPlayer.x;
-  const dy = targetPlayer.y - localPlayer.y;
+  const dx = targetPlayer.x - localPlayer.x, dy = targetPlayer.y - localPlayer.y;
   const dist = Math.sqrt(dx*dx + dy*dy) || 1;
   const throwDist = 150 + Math.random() * 50;
   let toX = targetPlayer.x + (dx / dist) * throwDist;
   let toY = targetPlayer.y + (dy / dist) * throwDist;
   toX = Math.max(30, Math.min(MAP.width - 30, toX));
   toY = Math.max(30, Math.min(MAP.height - 50, toY));
-  // Server broadcasts to everyone including self
   socket.emit("throw-object", { targetId, fromX: targetPlayer.x, fromY: targetPlayer.y, toX, toY });
 }
 
-function drawFlyingPlayer(ctx, obj, now) {
-  const elapsed = now - obj.startTime;
-  const t = Math.min(1, elapsed / THROW_FLY_DURATION);
-  const px = obj.fromX + (obj.toX - obj.fromX) * t;
-  const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 80; // high arc!
-  const rotation = t * Math.PI * 3; // tumble spin
+function throwPropItem(prop) {
+  if (!localPlayer || !socket) return;
+  // Find nearest other player to auto-aim
+  let targetX, targetY;
+  let closest = null, closestDist = 300;
+  for (const [id, p] of remotePlayers) {
+    const dx = p.x - localPlayer.x, dy = p.y - localPlayer.y;
+    const d = Math.sqrt(dx*dx + dy*dy);
+    if (d < closestDist) { closestDist = d; closest = p; }
+  }
+  if (closest) { targetX = closest.x; targetY = closest.y; }
+  else {
+    const dirV = { up:{x:0,y:-1}, down:{x:0,y:1}, left:{x:-1,y:0}, right:{x:1,y:0} };
+    const dv = dirV[localPlayer.direction] || {x:0,y:1};
+    targetX = localPlayer.x + dv.x * 200; targetY = localPlayer.y + dv.y * 200;
+  }
+  socket.emit("throw-prop", { propType: prop.type, fromX: localPlayer.x, fromY: localPlayer.y, toX: targetX, toY: targetY });
+}
 
+function drawFlyingPlayer(ctx, obj, now) {
+  const t = Math.min(1, (now - obj.startTime) / THROW_FLY_DURATION);
+  const px = obj.fromX + (obj.toX - obj.fromX) * t;
+  const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 80;
   ctx.save();
   ctx.translate(px, py);
-  ctx.rotate(rotation);
-  ctx.scale(0.8, 0.8); // slightly smaller while flying
+  ctx.rotate(t * Math.PI * 3);
+  ctx.scale(0.8, 0.8);
   drawCharacter(ctx, 0, 0, obj.charIdx, "down", "", false, 0);
   ctx.restore();
-
-  // Shadow on ground
   const groundY = obj.fromY + (obj.toY - obj.fromY) * t;
-  const shadowScale = 1 - Math.sin(t * Math.PI) * 0.5;
+  const ss = 1 - Math.sin(t * Math.PI) * 0.5;
   ctx.fillStyle = "rgba(0,0,0,0.15)";
-  ctx.beginPath();
-  ctx.ellipse(px, groundY + 28, 10 * shadowScale, 3 * shadowScale, 0, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.beginPath(); ctx.ellipse(px, groundY + 28, 10*ss, 3*ss, 0, 0, Math.PI*2); ctx.fill();
+}
+
+function drawFlyingPropItem(ctx, obj, now) {
+  const t = Math.min(1, (now - obj.startTime) / PROP_FLY_DURATION);
+  const px = obj.fromX + (obj.toX - obj.fromX) * t;
+  const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 40;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(t * Math.PI * 5);
+  drawProp(ctx, { type: obj.propType, x: 0, y: 0 });
+  ctx.restore();
 }
 
 function getStunScale(playerId) {
@@ -1100,37 +1327,24 @@ function getStunScale(playerId) {
   const elapsed = Date.now() - stun.startTime;
   if (elapsed > STUN_DURATION) { stunnedPlayers.delete(playerId); return { scaleX: 1, scaleY: 1, offsetY: 0 }; }
   const t = elapsed / STUN_DURATION;
-  // Phase 1 (0~0.25): squash down (land impact)
-  // Phase 2 (0.25~0.5): stay squashed
-  // Phase 3 (0.5~0.8): stretch up (bounce)
-  // Phase 4 (0.8~1.0): return to normal
   let scaleX = 1, scaleY = 1, offsetY = 0;
-  if (t < 0.25) {
-    const p = t / 0.25;
-    scaleY = 1 - p * 0.55; // squash to 45% height
-    scaleX = 1 + p * 0.3;  // widen
-    offsetY = p * 12;
-  } else if (t < 0.5) {
-    scaleY = 0.45;
-    scaleX = 1.3;
-    offsetY = 12;
-  } else if (t < 0.8) {
-    const p = (t - 0.5) / 0.3;
-    scaleY = 0.45 + p * 0.65; // stretch back up (slight overshoot)
-    scaleX = 1.3 - p * 0.35;
-    offsetY = 12 - p * 14;
-  } else {
-    const p = (t - 0.8) / 0.2;
-    scaleY = 1.1 - p * 0.1; // settle to normal
-    scaleX = 0.95 + p * 0.05;
-    offsetY = -2 + p * 2;
-  }
+  if (t < 0.25) { const p = t/0.25; scaleY = 1-p*0.55; scaleX = 1+p*0.3; offsetY = p*12; }
+  else if (t < 0.5) { scaleY = 0.45; scaleX = 1.3; offsetY = 12; }
+  else if (t < 0.8) { const p = (t-0.5)/0.3; scaleY = 0.45+p*0.65; scaleX = 1.3-p*0.35; offsetY = 12-p*14; }
+  else { const p = (t-0.8)/0.2; scaleY = 1.1-p*0.1; scaleX = 0.95+p*0.05; offsetY = -2+p*2; }
   return { scaleX, scaleY, offsetY };
 }
 
-function isPlayerFlying(playerId) {
-  return flyingPlayers.some(f => f.playerId === playerId);
+function getWobbleAngle(playerId) {
+  const w = wobblePlayers.get(playerId);
+  if (!w) return 0;
+  const elapsed = Date.now() - w.startTime;
+  if (elapsed > WOBBLE_DURATION) { wobblePlayers.delete(playerId); return 0; }
+  const t = elapsed / WOBBLE_DURATION;
+  return Math.sin(t * Math.PI * 6) * (1 - t) * 0.15;
 }
+
+function isPlayerFlying(playerId) { return flyingPlayers.some(f => f.playerId === playerId); }
 
 // ═══════════════════════════════════════════
 //  HUD
@@ -1140,52 +1354,76 @@ function updateHUD() {
 }
 
 // ═══════════════════════════════════════════
-//  INPUT (Keyboard + Click-to-Move)
+//  INPUT
 // ═══════════════════════════════════════════
 window.addEventListener("keydown", (e) => {
   if (document.activeElement === document.getElementById("chat-input")) return;
   keys[e.key] = true;
-  // Any movement key cancels click target
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","w","W","a","A","s","S","d","D"].includes(e.key)) {
-    moveTarget = null;
+    movePath = null; moveTarget = null;
   }
   if (e.key === "Enter" && gameRunning) { document.getElementById("chat-input").focus(); e.preventDefault(); }
   if ((e.key === "t" || e.key === "T") && gameRunning) {
+    const nearby = getNearbyThrowables();
+    if (nearby.length === 0) return;
     throwMode = !throwMode;
     document.getElementById("throw-btn").classList.toggle("throw-active", throwMode);
     document.getElementById("game-area").style.cursor = throwMode ? "crosshair" : "pointer";
+    if (!throwMode) hoverTarget = null;
   }
 });
 window.addEventListener("keyup", (e) => { keys[e.key] = false; });
 
-// Click-to-move (or throw)
+// Mouse move for throw hover
+document.getElementById("game-canvas").addEventListener("mousemove", (e) => {
+  if (!throwMode || !localPlayer || !gameRunning) { hoverTarget = null; return; }
+  const canvas = e.target, rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const sx = canvas.width / dpr / rect.width, sy = canvas.height / dpr / rect.height;
+  const worldX = (e.clientX - rect.left) * sx - currentCamX;
+  const worldY = (e.clientY - rect.top) * sy - currentCamY;
+  hoverTarget = null;
+  const nearby = getNearbyThrowables();
+  for (const item of nearby) {
+    const dx = item.data.x - worldX, dy = item.data.y - worldY;
+    const hitR = item.type === "player" ? 25 : 15;
+    if (Math.sqrt(dx*dx + dy*dy) < hitR) { hoverTarget = item; break; }
+  }
+  document.getElementById("game-area").style.cursor = hoverTarget ? "grab" : "crosshair";
+});
+
+// Click: move or throw
 document.getElementById("game-canvas").addEventListener("click", (e) => {
   if (!localPlayer || !gameRunning) return;
   if (document.activeElement === document.getElementById("chat-input")) return;
-
-  const canvas = e.target;
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / (window.devicePixelRatio || 1) / rect.width;
-  const scaleY = canvas.height / (window.devicePixelRatio || 1) / rect.height;
-  const clickX = (e.clientX - rect.left) * scaleX;
-  const clickY = (e.clientY - rect.top) * scaleY;
-
-  const worldX = clickX - currentCamX;
-  const worldY = clickY - currentCamY;
+  const canvas = e.target, rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const sx = canvas.width / dpr / rect.width, sy = canvas.height / dpr / rect.height;
+  const worldX = (e.clientX - rect.left) * sx - currentCamX;
+  const worldY = (e.clientY - rect.top) * sy - currentCamY;
 
   if (throwMode) {
-    const target = findNearestPlayer(worldX, worldY);
-    if (target && !isPlayerFlying(target.id) && !stunnedPlayers.has(target.id)) {
-      throwPlayer(target.id, target.player);
+    if (hoverTarget) {
+      if (hoverTarget.type === "player") throwPlayer(hoverTarget.id, hoverTarget.data);
+      else if (hoverTarget.type === "prop") throwPropItem(hoverTarget.data);
     }
     throwMode = false;
+    hoverTarget = null;
     document.getElementById("throw-btn").classList.remove("throw-active");
     document.getElementById("game-area").style.cursor = "pointer";
     return;
   }
 
-  // Don't move into walls
-  if (!checkCollision(worldX, worldY)) {
+  // Pathfinding click-to-move
+  const path = findPath(localPlayer.x, localPlayer.y, worldX, worldY);
+  if (path && path.length > 0) {
+    movePath = path;
+    movePathIdx = 0;
+    moveTarget = { x: path[path.length-1].x, y: path[path.length-1].y, time: Date.now() };
+  } else if (!checkCollision(worldX, worldY)) {
+    // Fallback: direct move if path not found but target is walkable
+    movePath = [{ x: worldX, y: worldY }];
+    movePathIdx = 0;
     moveTarget = { x: worldX, y: worldY, time: Date.now() };
   }
 });
@@ -1197,7 +1435,6 @@ function handleInput(dt) {
   let dx = 0, dy = 0;
   const dist = SPEED * (dt / 1000);
 
-  // Keyboard
   if (keys["ArrowUp"] || keys["w"] || keys["W"]) dy -= dist;
   if (keys["ArrowDown"] || keys["s"] || keys["S"]) dy += dist;
   if (keys["ArrowLeft"] || keys["a"] || keys["A"]) dx -= dist;
@@ -1205,15 +1442,19 @@ function handleInput(dt) {
 
   if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
 
-  // If no keyboard input, use click target
-  if (dx === 0 && dy === 0 && moveTarget) {
-    const tdx = moveTarget.x - localPlayer.x;
-    const tdy = moveTarget.y - localPlayer.y;
+  // Follow path waypoints
+  if (dx === 0 && dy === 0 && movePath && movePathIdx < movePath.length) {
+    const wp = movePath[movePathIdx];
+    const tdx = wp.x - localPlayer.x, tdy = wp.y - localPlayer.y;
     const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
     if (tdist < 5) {
-      moveTarget = null;
-      localPlayer.isMoving = false;
-      sendPosition();
+      movePathIdx++;
+      if (movePathIdx >= movePath.length) {
+        movePath = null; moveTarget = null;
+        localPlayer.isMoving = false;
+        sendPosition();
+        return;
+      }
       return;
     }
     dx = (tdx / tdist) * dist;
@@ -1222,23 +1463,20 @@ function handleInput(dt) {
 
   if (dx === 0 && dy === 0) { localPlayer.isMoving = false; return; }
 
-  // Direction
   if (Math.abs(dy) > Math.abs(dx)) localPlayer.direction = dy < 0 ? "up" : "down";
   else localPlayer.direction = dx < 0 ? "left" : "right";
-
   localPlayer.isMoving = true;
 
   const newX = localPlayer.x + dx;
   if (!checkCollision(newX, localPlayer.y)) localPlayer.x = newX;
-  else if (moveTarget) { moveTarget = null; } // Cancel click target on collision
+  else if (movePath) { movePath = null; moveTarget = null; }
 
   const newY = localPlayer.y + dy;
   if (!checkCollision(localPlayer.x, newY)) localPlayer.y = newY;
-  else if (moveTarget) { moveTarget = null; }
+  else if (movePath) { movePath = null; moveTarget = null; }
 
   localPlayer.x = Math.max(24, Math.min(MAP.width - 24, localPlayer.x));
   localPlayer.y = Math.max(24, Math.min(MAP.height - 40, localPlayer.y));
-
   sendPosition();
 }
 
@@ -1253,14 +1491,70 @@ function sendPosition() {
 //  UPDATE
 // ═══════════════════════════════════════════
 function update(dt) {
+  const now = Date.now();
+  // Remote player interpolation
   for (const [id, p] of remotePlayers) {
     if (p.targetX !== undefined) {
-      const oldX = p.x, oldY = p.y;
+      const ox = p.x, oy = p.y;
       p.x += (p.targetX - p.x) * 0.18;
       p.y += (p.targetY - p.y) * 0.18;
       if (Math.abs(p.targetX - p.x) < 0.5) p.x = p.targetX;
       if (Math.abs(p.targetY - p.y) < 0.5) p.y = p.targetY;
-      p.isMoving = Math.abs(p.x - oldX) > 0.1 || Math.abs(p.y - oldY) > 0.1;
+      p.isMoving = Math.abs(p.x - ox) > 0.1 || Math.abs(p.y - oy) > 0.1;
+    }
+  }
+
+  // Update aura particles for all players with active emoji
+  if (localPlayer && localPlayer.activeEmoji) updateAura(socket.id, localPlayer.activeEmoji, localPlayer.x, localPlayer.y, dt);
+  for (const [id, p] of remotePlayers) {
+    if (p.activeEmoji) updateAura(id, p.activeEmoji, p.x, p.y, dt);
+  }
+  // Clean up aura for players without emoji
+  for (const [pid] of auraParticles) {
+    const isLocal = socket && pid === socket.id;
+    const player = isLocal ? localPlayer : remotePlayers.get(pid);
+    if (!player || !player.activeEmoji) {
+      const parts = auraParticles.get(pid);
+      if (parts) {
+        const dts = dt / 1000;
+        for (let i = parts.length - 1; i >= 0; i--) { parts[i].life -= dts; if (parts[i].life <= 0) parts.splice(i, 1); }
+        if (parts.length === 0) auraParticles.delete(pid);
+      }
+    }
+  }
+
+  // Check prop hits on landing
+  for (let i = flyingProps.length - 1; i >= 0; i--) {
+    const fp = flyingProps[i];
+    if (now - fp.startTime >= PROP_FLY_DURATION) {
+      // Check hit on any player near landing
+      const hitCheck = (px, py, pid) => {
+        const dx = px - fp.toX, dy = py - fp.toY;
+        return Math.sqrt(dx*dx + dy*dy) < 35 && pid !== fp.throwerId;
+      };
+      for (const [id, p] of remotePlayers) {
+        if (hitCheck(p.x, p.y, id)) { wobblePlayers.set(id, { startTime: now }); playHitSound(); break; }
+      }
+      if (localPlayer && socket && hitCheck(localPlayer.x, localPlayer.y, socket.id)) {
+        wobblePlayers.set(socket.id, { startTime: now }); playHitSound();
+      }
+      flyingProps.splice(i, 1);
+    }
+  }
+
+  // Update throw button state
+  const nearby = getNearbyThrowables();
+  const throwBtn = document.getElementById("throw-btn");
+  if (nearby.length > 0) {
+    throwBtn.classList.remove("throw-disabled");
+    throwBtn.disabled = false;
+  } else {
+    throwBtn.classList.add("throw-disabled");
+    throwBtn.disabled = true;
+    if (throwMode) {
+      throwMode = false; hoverTarget = null;
+      throwBtn.classList.remove("throw-active");
+      document.getElementById("game-area").style.cursor = "pointer";
     }
   }
 }
@@ -1289,88 +1583,136 @@ function render() {
   for (const f of FURNITURE) { if (f.type === "rug") drawFurniture(ctx, f); }
   drawWalls(ctx);
 
+  // Draw throwable props
+  for (const prop of THROWABLE_PROPS) drawProp(ctx, prop);
+
   // Click target indicator
   if (moveTarget) {
     const age = (Date.now() - moveTarget.time) / 1000;
     const alpha = Math.max(0, 0.5 - age * 0.15);
     const pulse = 1 + Math.sin(Date.now() / 200) * 0.15;
-    ctx.strokeStyle = `rgba(226,183,20,${alpha})`;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(226,183,20,${alpha})`; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(moveTarget.x, moveTarget.y, 8 * pulse, 0, Math.PI * 2); ctx.stroke();
+    // Draw path dots
+    if (movePath && alpha > 0.1) {
+      ctx.fillStyle = `rgba(226,183,20,${alpha * 0.5})`;
+      for (let i = movePathIdx; i < movePath.length; i++) {
+        ctx.beginPath(); ctx.arc(movePath[i].x, movePath[i].y, 2, 0, Math.PI * 2); ctx.fill();
+      }
+    }
   }
 
   // Y-sorted drawables
   const drawables = [];
   for (const f of FURNITURE) { if (f.type === "rug") continue; drawables.push({ type: "f", data: f, sortY: f.y + f.h }); }
-  drawables.push({ type: "p", data: localPlayer, isSelf: true, sortY: localPlayer.y + 28 });
-  for (const [id, p] of remotePlayers) drawables.push({ type: "p", data: p, isSelf: false, sortY: p.y + 28 });
+  drawables.push({ type: "p", data: localPlayer, isSelf: true, id: socket ? socket.id : "local", sortY: localPlayer.y + 28 });
+  for (const [id, p] of remotePlayers) drawables.push({ type: "p", data: p, isSelf: false, id, sortY: p.y + 28 });
   drawables.sort((a, b) => a.sortY - b.sortY);
 
   const now = Date.now();
+  const nearbyThrowables = throwMode ? getNearbyThrowables() : [];
+
   for (const d of drawables) {
     if (d.type === "f") {
       drawFurniture(ctx, d.data);
     } else {
-      // Skip drawing if player is mid-air (being thrown)
-      if (isPlayerFlying(d.data.id)) continue;
+      if (isPlayerFlying(d.id)) continue;
 
       const bob = d.data.isMoving ? Math.sin(now / 120) * 2 : 0;
-      const stun = getStunScale(d.data.id);
+      const stun = getStunScale(d.id);
+      const wobble = getWobbleAngle(d.id);
 
       if (stun.scaleX !== 1 || stun.scaleY !== 1) {
         ctx.save();
-        ctx.translate(d.data.x, d.data.y + 28); // pivot at feet
+        ctx.translate(d.data.x, d.data.y + 28);
         ctx.scale(stun.scaleX, stun.scaleY);
         ctx.translate(-d.data.x, -(d.data.y + 28));
         drawCharacter(ctx, d.data.x, d.data.y + stun.offsetY, d.data.character, d.data.direction, d.data.name, d.isSelf, 0);
-        // Stars above head when stunned
         if (stun.scaleY < 0.8) {
-          const starPhase = now / 200;
+          const sp = now / 200;
           ctx.font = "10px serif"; ctx.textAlign = "center";
           for (let s = 0; s < 3; s++) {
-            const sx = d.data.x + Math.cos(starPhase + s * 2.1) * 16;
-            const sy = d.data.y - 26 + Math.sin(starPhase * 1.3 + s * 1.5) * 4;
-            ctx.fillText("⭐", sx, sy);
+            ctx.fillText("⭐", d.data.x + Math.cos(sp + s*2.1)*16, d.data.y - 26 + Math.sin(sp*1.3 + s*1.5)*4);
           }
         }
+        ctx.restore();
+      } else if (wobble !== 0) {
+        ctx.save();
+        ctx.translate(d.data.x, d.data.y + 28);
+        ctx.rotate(wobble);
+        ctx.translate(-d.data.x, -(d.data.y + 28));
+        drawCharacter(ctx, d.data.x, d.data.y, d.data.character, d.data.direction, d.data.name, d.isSelf, bob);
         ctx.restore();
       } else {
         drawCharacter(ctx, d.data.x, d.data.y, d.data.character, d.data.direction, d.data.name, d.isSelf, bob);
       }
+
+      // Aura effect
+      drawAura(ctx, d.id);
+
       // Speech bubble
-      const bubble = chatBubbles.get(d.data.id);
+      const bubble = chatBubbles.get(d.id);
       if (bubble && now - bubble.startTime < BUBBLE_DURATION) {
         const alpha = Math.min(1, 1 - (now - bubble.startTime - BUBBLE_DURATION + 1000) / 1000);
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, alpha);
+        ctx.save(); ctx.globalAlpha = Math.max(0, alpha);
         drawChatBubble(ctx, d.data.x, d.data.y + (bob || 0), bubble.text);
         ctx.restore();
+      }
+
+      // Interaction indicator (when near and not in throw mode)
+      if (!d.isSelf && !throwMode && localPlayer) {
+        const dx = d.data.x - localPlayer.x, dy = d.data.y - localPlayer.y;
+        if (Math.sqrt(dx*dx + dy*dy) < INTERACT_RANGE && !isPlayerFlying(d.id) && !stunnedPlayers.has(d.id)) {
+          const pulse = 0.4 + Math.sin(now / 300) * 0.3;
+          ctx.font = "10px serif"; ctx.textAlign = "center"; ctx.globalAlpha = pulse;
+          ctx.fillText("👆", d.data.x, d.data.y - 32);
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // Throw mode hover highlight
+      if (throwMode && hoverTarget && hoverTarget.type === "player" && hoverTarget.id === d.id) {
+        const pulse = 0.5 + Math.sin(now / 150) * 0.3;
+        ctx.strokeStyle = `rgba(226,183,20,${pulse})`; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(d.data.x, d.data.y + 5, 22, 0, Math.PI * 2); ctx.stroke();
       }
     }
   }
 
-  // Emoji reactions
-  const EDUR = 2000;
-  for (let i = activeReactions.length - 1; i >= 0; i--) {
-    const r = activeReactions[i];
-    const elapsed = now - r.startTime;
-    if (elapsed > EDUR) { activeReactions.splice(i, 1); continue; }
-    const player = r.playerId === (socket && socket.id) ? localPlayer : remotePlayers.get(r.playerId);
-    if (player) { r.x = player.x; r.y = player.y; }
-    const progress = elapsed / EDUR;
-    ctx.save();
-    ctx.globalAlpha = 1 - progress * progress;
-    ctx.font = Math.floor(22 * (1 + Math.sin(progress * Math.PI * 0.7) * 0.3)) + "px serif";
-    ctx.textAlign = "center";
-    ctx.fillText(r.emoji, r.x, r.y - 30 - progress * 50);
-    ctx.restore();
+  // Interaction indicators for throwable props
+  if (localPlayer && !throwMode) {
+    for (const prop of THROWABLE_PROPS) {
+      const dx = prop.x - localPlayer.x, dy = prop.y - localPlayer.y;
+      if (Math.sqrt(dx*dx + dy*dy) < INTERACT_RANGE) {
+        const pulse = 0.3 + Math.sin(now / 300) * 0.2;
+        ctx.font = "8px serif"; ctx.textAlign = "center"; ctx.globalAlpha = pulse;
+        ctx.fillText("👆", prop.x, prop.y - 12);
+        ctx.globalAlpha = 1;
+      }
+    }
   }
 
-  // Flying players (thrown characters tumbling through the air)
+  // Throw mode: highlight nearby throwable props
+  if (throwMode) {
+    for (const item of nearbyThrowables) {
+      if (item.type !== "prop") continue;
+      const isHov = hoverTarget && hoverTarget.type === "prop" && hoverTarget.id === item.id;
+      const pulse = isHov ? 0.7 + Math.sin(now / 150) * 0.3 : 0.3 + Math.sin(now / 300) * 0.2;
+      ctx.strokeStyle = `rgba(226,183,20,${pulse})`; ctx.lineWidth = isHov ? 2 : 1;
+      ctx.beginPath(); ctx.arc(item.data.x, item.data.y, 12, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
+  // Flying players
   for (let i = flyingPlayers.length - 1; i >= 0; i--) {
     const obj = flyingPlayers[i];
     if (now - obj.startTime > THROW_FLY_DURATION) { flyingPlayers.splice(i, 1); continue; }
     drawFlyingPlayer(ctx, obj, now);
+  }
+
+  // Flying props
+  for (const fp of flyingProps) {
+    if (now - fp.startTime <= PROP_FLY_DURATION) drawFlyingPropItem(ctx, fp, now);
   }
 
   ctx.restore();
