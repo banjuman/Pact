@@ -425,131 +425,275 @@ function drawAccessory(ctx, cx, cy, acc, dir) {
 // ═══════════════════════════════════════════
 //  MAP - Modern Office (1600 x 1000)
 // ═══════════════════════════════════════════
-const MAP = { width: 1600, height: 1000, tileSize: 32 };
+const MAP = { width: 4000, height: 2400, tileSize: 32 };
+
+// Jail zone bounds (matches server.js)
+const JAIL = { x: 2996, y: 1214, w: 990, h: 1172 };
 
 const FLOOR_ZONES = [
-  { x: 14,   y: 14,  w: 806, h: 456, color: "#ede5d8" },     // Work area
-  { x: 838,  y: 14,  w: 748, h: 456, color: "#dce3ed" },     // Meeting room
-  { x: 14,   y: 470, w: 1572, h: 60, color: "#e8e4de" },     // Central corridor
-  { x: 14,   y: 530, w: 460, h: 456, color: "#e5e5e0" },     // Kitchen
-  { x: 474,  y: 530, w: 626, h: 456, color: "#e0d8ce" },     // Lounge
-  { x: 1118, y: 530, w: 468, h: 456, color: "#ddd5e5" },     // Rest/Nap
+  // Top row
+  { x: 14,   y: 14,   w: 980,  h: 1080, color: "#ede5d8" },  // 사무실
+  { x: 1008, y: 14,   w: 980,  h: 1080, color: "#dce3ed" },  // 휴게실
+  { x: 2002, y: 14,   w: 980,  h: 1080, color: "#ddd5e5" },  // 침실
+  { x: 2996, y: 14,   w: 990,  h: 1080, color: "#d5e8e0" },  // 온천
+  // Corridor
+  { x: 14,   y: 1094, w: 3972, h: 120,  color: "#e8e4de" },  // 복도
+  // Bottom row
+  { x: 14,   y: 1214, w: 980,  h: 1172, color: "#e5dcd0" },  // 유흥업소
+  { x: 1008, y: 1214, w: 980,  h: 1172, color: "#e5e5e0" },  // 식당
+  { x: 2002, y: 1214, w: 980,  h: 1172, color: "#d8e5d0" },  // 숲
+  { x: 2996, y: 1214, w: 990,  h: 1172, color: "#e0d5d5" },  // 감옥
 ];
 
 const ZONE_LABELS = [
-  { text: "WORKSPACE", x: 420, y: 260 },
-  { text: "MEETING", x: 1200, y: 260 },
-  { text: "KITCHEN", x: 240, y: 760 },
-  { text: "LOUNGE", x: 780, y: 760 },
-  { text: "REST", x: 1350, y: 760 },
+  { text: "사무실",   x: 500,  y: 550 },
+  { text: "휴게실",   x: 1500, y: 550 },
+  { text: "침실",     x: 2500, y: 550 },
+  { text: "온천",     x: 3490, y: 550 },
+  { text: "유흥업소",  x: 500,  y: 1800 },
+  { text: "식당",     x: 1500, y: 1800 },
+  { text: "숲",       x: 2500, y: 1800 },
+  { text: "감옥",     x: 3490, y: 1800 },
 ];
 
 const WALLS = [
   // Outer walls
-  { x: 0, y: 0, w: MAP.width, h: 14 },
-  { x: 0, y: MAP.height - 14, w: MAP.width, h: 14 },
-  { x: 0, y: 0, w: 14, h: MAP.height },
-  { x: MAP.width - 14, y: 0, w: 14, h: MAP.height },
-  // Meeting room left wall (100px doorway at y=190-290)
-  { x: 830, y: 14, w: 8, h: 176 },
-  { x: 830, y: 290, w: 8, h: 180 },
-  // Nap room left wall (100px doorway at y=700-800)
-  { x: 1110, y: 530, w: 8, h: 170 },
-  { x: 1110, y: 800, w: 8, h: 186 },
+  { x: 0, y: 0, w: 4000, h: 14 },
+  { x: 0, y: 2386, w: 4000, h: 14 },
+  { x: 0, y: 0, w: 14, h: 2400 },
+  { x: 3986, y: 0, w: 14, h: 2400 },
+  // Top row vertical walls (100px doorway centered ~y=500)
+  { x: 994, y: 14, w: 14, h: 436 },  { x: 994, y: 550, w: 14, h: 544 },   // 사무실/휴게실
+  { x: 1988, y: 14, w: 14, h: 436 }, { x: 1988, y: 550, w: 14, h: 544 },  // 휴게실/침실
+  { x: 2982, y: 14, w: 14, h: 436 }, { x: 2982, y: 550, w: 14, h: 544 },  // 침실/온천
+  // Bottom row vertical walls (100px doorway centered ~y=1750)
+  { x: 994, y: 1214, w: 14, h: 486 },  { x: 994, y: 1800, w: 14, h: 586 },   // 유흥업소/식당
+  { x: 1988, y: 1214, w: 14, h: 486 }, { x: 1988, y: 1800, w: 14, h: 586 },  // 식당/숲
+  // 숲/감옥 — fully sealed (no doorway)
+  { x: 2982, y: 1214, w: 14, h: 1172 },
 ];
 
 const FURNITURE = [
-  // ── Work Area: 3x3 desks + standing desks ──
-  { type: "modern_desk", x: 60,  y: 60,  w: 100, h: 50 },
-  { type: "modern_desk", x: 60,  y: 200, w: 100, h: 50 },
-  { type: "modern_desk", x: 60,  y: 340, w: 100, h: 50 },
-  { type: "modern_desk", x: 280, y: 60,  w: 100, h: 50 },
-  { type: "modern_desk", x: 280, y: 200, w: 100, h: 50 },
-  { type: "modern_desk", x: 280, y: 340, w: 100, h: 50 },
-  { type: "modern_desk", x: 500, y: 60,  w: 100, h: 50 },
-  { type: "modern_desk", x: 500, y: 200, w: 100, h: 50 },
-  { type: "modern_desk", x: 500, y: 340, w: 100, h: 50 },
-  // Desk chairs
-  { type: "office_chair", x: 95,  y: 120, w: 22, h: 22 },
-  { type: "office_chair", x: 95,  y: 260, w: 22, h: 22 },
-  { type: "office_chair", x: 95,  y: 400, w: 22, h: 22 },
-  { type: "office_chair", x: 315, y: 120, w: 22, h: 22 },
-  { type: "office_chair", x: 315, y: 260, w: 22, h: 22 },
-  { type: "office_chair", x: 315, y: 400, w: 22, h: 22 },
-  { type: "office_chair", x: 535, y: 120, w: 22, h: 22 },
-  { type: "office_chair", x: 535, y: 260, w: 22, h: 22 },
-  { type: "office_chair", x: 535, y: 400, w: 22, h: 22 },
-  // Standing desks
-  { type: "standing_desk", x: 690, y: 80,  w: 70, h: 40 },
-  { type: "standing_desk", x: 690, y: 240, w: 70, h: 40 },
-  { type: "standing_desk", x: 690, y: 400, w: 70, h: 40 },
+  // ══════ 사무실 (Office) ══════
+  { type: "modern_desk", x: 74,  y: 74,  w: 100, h: 50 },
+  { type: "modern_desk", x: 74,  y: 254, w: 100, h: 50 },
+  { type: "modern_desk", x: 74,  y: 434, w: 100, h: 50 },
+  { type: "modern_desk", x: 294, y: 74,  w: 100, h: 50 },
+  { type: "modern_desk", x: 294, y: 254, w: 100, h: 50 },
+  { type: "modern_desk", x: 294, y: 434, w: 100, h: 50 },
+  { type: "modern_desk", x: 514, y: 74,  w: 100, h: 50 },
+  { type: "modern_desk", x: 514, y: 254, w: 100, h: 50 },
+  { type: "modern_desk", x: 514, y: 434, w: 100, h: 50 },
+  { type: "office_chair", x: 109, y: 134, w: 22, h: 22 },
+  { type: "office_chair", x: 109, y: 314, w: 22, h: 22 },
+  { type: "office_chair", x: 109, y: 494, w: 22, h: 22 },
+  { type: "office_chair", x: 329, y: 134, w: 22, h: 22 },
+  { type: "office_chair", x: 329, y: 314, w: 22, h: 22 },
+  { type: "office_chair", x: 329, y: 494, w: 22, h: 22 },
+  { type: "office_chair", x: 549, y: 134, w: 22, h: 22 },
+  { type: "office_chair", x: 549, y: 314, w: 22, h: 22 },
+  { type: "office_chair", x: 549, y: 494, w: 22, h: 22 },
+  { type: "standing_desk", x: 700, y: 100, w: 70, h: 40 },
+  { type: "standing_desk", x: 700, y: 300, w: 70, h: 40 },
+  { type: "standing_desk", x: 700, y: 500, w: 70, h: 40 },
+  { type: "modern_desk", x: 74,  y: 700, w: 100, h: 50 },
+  { type: "modern_desk", x: 74,  y: 880, w: 100, h: 50 },
+  { type: "modern_desk", x: 294, y: 700, w: 100, h: 50 },
+  { type: "modern_desk", x: 294, y: 880, w: 100, h: 50 },
+  { type: "modern_desk", x: 514, y: 700, w: 100, h: 50 },
+  { type: "modern_desk", x: 514, y: 880, w: 100, h: 50 },
+  { type: "office_chair", x: 109, y: 760, w: 22, h: 22 },
+  { type: "office_chair", x: 109, y: 940, w: 22, h: 22 },
+  { type: "office_chair", x: 329, y: 760, w: 22, h: 22 },
+  { type: "office_chair", x: 329, y: 940, w: 22, h: 22 },
+  { type: "office_chair", x: 549, y: 760, w: 22, h: 22 },
+  { type: "office_chair", x: 549, y: 940, w: 22, h: 22 },
+  { type: "standing_desk", x: 700, y: 700, w: 70, h: 40 },
+  { type: "standing_desk", x: 700, y: 880, w: 70, h: 40 },
+  { type: "whiteboard", x: 200, y: 620, w: 160, h: 12 },
+  { type: "phone_booth", x: 830, y: 100, w: 60, h: 70 },
+  { type: "phone_booth", x: 830, y: 260, w: 60, h: 70 },
+  { type: "conf_table", x: 200, y: 1000, w: 220, h: 60 },
+  { type: "plant_big", x: 30, y: 30, w: 30, h: 30 },
+  { type: "plant_big", x: 940, y: 30, w: 30, h: 30 },
+  { type: "plant_small", x: 940, y: 500, w: 22, h: 22 },
 
-  // ── Meeting Room ──
-  { type: "conf_table", x: 960, y: 130, w: 220, h: 120 },
-  { type: "office_chair", x: 990,  y: 95,  w: 22, h: 22 },
-  { type: "office_chair", x: 1050, y: 95,  w: 22, h: 22 },
-  { type: "office_chair", x: 1110, y: 95,  w: 22, h: 22 },
-  { type: "office_chair", x: 990,  y: 260, w: 22, h: 22 },
-  { type: "office_chair", x: 1050, y: 260, w: 22, h: 22 },
-  { type: "office_chair", x: 1110, y: 260, w: 22, h: 22 },
-  { type: "tv_wall", x: 1030, y: 20, w: 100, h: 12 },
-  { type: "whiteboard", x: 860, y: 360, w: 160, h: 12 },
-  { type: "phone_booth", x: 1320, y: 60,  w: 60, h: 70 },
-  { type: "phone_booth", x: 1420, y: 60,  w: 60, h: 70 },
+  // ══════ 휴게실 (Lounge) ══════
+  { type: "tv_wall", x: 1060, y: 20, w: 100, h: 12 },
+  { type: "tv_stand", x: 1060, y: 40, w: 100, h: 28 },
+  { type: "sofa", x: 1040, y: 100, w: 140, h: 50 },
+  { type: "sofa", x: 1040, y: 250, w: 140, h: 50 },
+  { type: "coffee_table", x: 1060, y: 170, w: 100, h: 55 },
+  { type: "pingpong", x: 1320, y: 100, w: 120, h: 70 },
+  { type: "arcade", x: 1520, y: 80, w: 48, h: 44 },
+  { type: "arcade", x: 1580, y: 80, w: 48, h: 44 },
+  { type: "beanbag", x: 1320, y: 280, w: 40, h: 40 },
+  { type: "beanbag", x: 1400, y: 280, w: 40, h: 40 },
+  { type: "beanbag", x: 1480, y: 280, w: 40, h: 40 },
+  { type: "sofa", x: 1040, y: 500, w: 140, h: 50 },
+  { type: "sofa", x: 1040, y: 650, w: 140, h: 50 },
+  { type: "coffee_table", x: 1060, y: 570, w: 100, h: 55 },
+  { type: "pingpong", x: 1320, y: 500, w: 120, h: 70 },
+  { type: "beanbag", x: 1320, y: 680, w: 40, h: 40 },
+  { type: "beanbag", x: 1400, y: 680, w: 40, h: 40 },
+  { type: "arcade", x: 1520, y: 500, w: 48, h: 44 },
+  { type: "sofa", x: 1040, y: 850, w: 140, h: 50 },
+  { type: "beanbag", x: 1480, y: 680, w: 40, h: 40 },
+  { type: "plant_big", x: 1930, y: 30, w: 30, h: 30 },
+  { type: "plant_big", x: 1930, y: 1050, w: 30, h: 30 },
+  { type: "rug", x: 1030, y: 80, w: 180, h: 250, noCollision: true },
+  { type: "rug", x: 1290, y: 250, w: 240, h: 120, noCollision: true },
 
-  // ── Kitchen ──
-  { type: "counter_long", x: 30, y: 545, w: 200, h: 36 },
-  { type: "coffee_machine", x: 250, y: 545, w: 44, h: 36 },
-  { type: "fridge", x: 310, y: 541, w: 40, h: 44 },
-  { type: "vending", x: 370, y: 541, w: 44, h: 44 },
-  { type: "dining_table", x: 60,  y: 650, w: 90, h: 50 },
-  { type: "dining_table", x: 60,  y: 800, w: 90, h: 50 },
-  { type: "stool", x: 50,  y: 710, w: 18, h: 18 },
-  { type: "stool", x: 85,  y: 710, w: 18, h: 18 },
-  { type: "stool", x: 120, y: 710, w: 18, h: 18 },
-  { type: "stool", x: 50,  y: 860, w: 18, h: 18 },
-  { type: "stool", x: 85,  y: 860, w: 18, h: 18 },
-  { type: "stool", x: 120, y: 860, w: 18, h: 18 },
-  { type: "microwave", x: 420, y: 547, w: 36, h: 30 },
+  // ══════ 침실 (Bedroom) ══════
+  { type: "bed", x: 2060, y: 80,  w: 120, h: 65 },
+  { type: "bed", x: 2060, y: 240, w: 120, h: 65 },
+  { type: "bed", x: 2060, y: 400, w: 120, h: 65 },
+  { type: "bed", x: 2060, y: 560, w: 120, h: 65 },
+  { type: "bed", x: 2340, y: 80,  w: 120, h: 65 },
+  { type: "bed", x: 2340, y: 240, w: 120, h: 65 },
+  { type: "bed", x: 2340, y: 400, w: 120, h: 65 },
+  { type: "bed", x: 2340, y: 560, w: 120, h: 65 },
+  { type: "nightstand", x: 2210, y: 100, w: 40, h: 30 },
+  { type: "nightstand", x: 2210, y: 260, w: 40, h: 30 },
+  { type: "nightstand", x: 2210, y: 420, w: 40, h: 30 },
+  { type: "nightstand", x: 2210, y: 580, w: 40, h: 30 },
+  { type: "bookshelf", x: 2060, y: 720, w: 100, h: 28 },
+  { type: "bookshelf", x: 2340, y: 720, w: 100, h: 28 },
+  { type: "bookshelf", x: 2600, y: 720, w: 100, h: 28 },
+  { type: "bed", x: 2060, y: 820, w: 120, h: 65 },
+  { type: "bed", x: 2060, y: 960, w: 120, h: 65 },
+  { type: "bed", x: 2340, y: 820, w: 120, h: 65 },
+  { type: "bed", x: 2340, y: 960, w: 120, h: 65 },
+  { type: "nightstand", x: 2210, y: 840, w: 40, h: 30 },
+  { type: "nightstand", x: 2210, y: 980, w: 40, h: 30 },
+  { type: "plant_big", x: 2930, y: 30, w: 30, h: 30 },
+  { type: "rug", x: 2050, y: 60, w: 200, h: 180, noCollision: true },
+  { type: "rug", x: 2320, y: 60, w: 200, h: 180, noCollision: true },
 
-  // ── Lounge ──
-  { type: "sofa", x: 520, y: 590, w: 140, h: 50 },
-  { type: "sofa", x: 520, y: 750, w: 140, h: 50 },
-  { type: "coffee_table", x: 540, y: 665, w: 100, h: 55 },
-  { type: "tv_stand", x: 530, y: 545, w: 100, h: 28 },
-  { type: "pingpong", x: 760, y: 600, w: 120, h: 70 },
-  { type: "arcade", x: 960, y: 560, w: 48, h: 44 },
-  { type: "arcade", x: 960, y: 640, w: 48, h: 44 },
-  { type: "beanbag", x: 760, y: 780, w: 40, h: 40 },
-  { type: "beanbag", x: 830, y: 820, w: 40, h: 40 },
-  { type: "beanbag", x: 900, y: 780, w: 40, h: 40 },
+  // ══════ 온천 (Hot Spring) ══════
+  { type: "hot_spring_pool", x: 3100, y: 150, w: 280, h: 200 },
+  { type: "hot_spring_pool", x: 3100, y: 550, w: 280, h: 200 },
+  { type: "rock", x: 3050, y: 120, w: 40, h: 35 },
+  { type: "rock", x: 3420, y: 130, w: 35, h: 30 },
+  { type: "rock", x: 3050, y: 400, w: 40, h: 35 },
+  { type: "rock", x: 3420, y: 530, w: 35, h: 30 },
+  { type: "rock", x: 3200, y: 830, w: 45, h: 35 },
+  { type: "towel_rack", x: 3520, y: 200, w: 35, h: 50 },
+  { type: "towel_rack", x: 3520, y: 600, w: 35, h: 50 },
+  { type: "wooden_fence", x: 3020, y: 30, w: 120, h: 14 },
+  { type: "wooden_fence", x: 3020, y: 460, w: 120, h: 14 },
+  { type: "wooden_fence", x: 3620, y: 30, w: 120, h: 14 },
+  { type: "wooden_fence", x: 3620, y: 460, w: 120, h: 14 },
+  { type: "bench_park", x: 3520, y: 400, w: 70, h: 30 },
+  { type: "plant_big", x: 3930, y: 30, w: 30, h: 30 },
+  { type: "plant_big", x: 3930, y: 1050, w: 30, h: 30 },
 
-  // ── Rest / Nap Room ──
-  { type: "bed", x: 1150, y: 590, w: 120, h: 65 },
-  { type: "bed", x: 1150, y: 730, w: 120, h: 65 },
-  { type: "bed", x: 1350, y: 590, w: 120, h: 65 },
-  { type: "bed", x: 1350, y: 730, w: 120, h: 65 },
-  { type: "bookshelf", x: 1150, y: 880, w: 100, h: 28 },
-  { type: "bookshelf", x: 1350, y: 880, w: 100, h: 28 },
-  { type: "nightstand", x: 1285, y: 610, w: 40, h: 30 },
-  { type: "nightstand", x: 1285, y: 750, w: 40, h: 30 },
+  // ══════ 유흥업소 (Entertainment) ══════
+  { type: "bar_counter", x: 50,  y: 1250, w: 200, h: 40 },
+  { type: "bar_counter", x: 50,  y: 1560, w: 200, h: 40 },
+  { type: "stool", x: 55,  y: 1300, w: 18, h: 18 },
+  { type: "stool", x: 90,  y: 1300, w: 18, h: 18 },
+  { type: "stool", x: 125, y: 1300, w: 18, h: 18 },
+  { type: "stool", x: 160, y: 1300, w: 18, h: 18 },
+  { type: "stool", x: 195, y: 1300, w: 18, h: 18 },
+  { type: "stool", x: 55,  y: 1610, w: 18, h: 18 },
+  { type: "stool", x: 90,  y: 1610, w: 18, h: 18 },
+  { type: "stool", x: 125, y: 1610, w: 18, h: 18 },
+  { type: "stool", x: 160, y: 1610, w: 18, h: 18 },
+  { type: "stool", x: 195, y: 1610, w: 18, h: 18 },
+  { type: "karaoke_booth", x: 420, y: 1260, w: 100, h: 80 },
+  { type: "karaoke_booth", x: 620, y: 1260, w: 100, h: 80 },
+  { type: "pool_table", x: 370, y: 1500, w: 130, h: 75 },
+  { type: "dart_board", x: 810, y: 1240, w: 40, h: 40 },
+  { type: "dart_board", x: 880, y: 1240, w: 40, h: 40 },
+  { type: "disco_ball", x: 490, y: 1430, w: 30, h: 30, noCollision: true },
+  { type: "sofa", x: 50, y: 1730, w: 140, h: 50 },
+  { type: "sofa", x: 50, y: 1880, w: 140, h: 50 },
+  { type: "coffee_table", x: 70, y: 1800, w: 100, h: 55 },
+  { type: "beanbag", x: 700, y: 1730, w: 40, h: 40 },
+  { type: "beanbag", x: 780, y: 1730, w: 40, h: 40 },
+  { type: "arcade", x: 810, y: 1520, w: 48, h: 44 },
+  { type: "arcade", x: 880, y: 1520, w: 48, h: 44 },
+  { type: "plant_big", x: 30, y: 2340, w: 30, h: 30 },
 
-  // ── Decorative ──
-  { type: "plant_big", x: 24,   y: 24,   w: 30, h: 30 },
-  { type: "plant_big", x: 790,  y: 24,   w: 30, h: 30 },
-  { type: "plant_big", x: 24,   y: 930,  w: 30, h: 30 },
-  { type: "plant_big", x: 1540, y: 24,   w: 30, h: 30 },
-  { type: "plant_big", x: 1540, y: 930,  w: 30, h: 30 },
-  { type: "plant_big", x: 1540, y: 540,  w: 30, h: 30 },
-  { type: "plant_small", x: 790, y: 420, w: 22, h: 22 },
-  { type: "plant_small", x: 450, y: 540, w: 22, h: 22 },
-  { type: "plant_small", x: 1080, y: 540, w: 22, h: 22 },
-  // Rugs
-  { type: "rug", x: 500, y: 575, w: 180, h: 250, noCollision: true },
-  { type: "rug", x: 940, y: 120, w: 260, h: 150, noCollision: true },
-  { type: "rug", x: 730, y: 760, w: 240, h: 120, noCollision: true },
-  { type: "rug", x: 1140, y: 560, w: 180, h: 120, noCollision: true },
-  { type: "rug", x: 1340, y: 560, w: 180, h: 120, noCollision: true },
+  // ══════ 식당 (Restaurant) ══════
+  { type: "counter_long", x: 1030, y: 1240, w: 200, h: 36 },
+  { type: "coffee_machine", x: 1250, y: 1240, w: 44, h: 36 },
+  { type: "fridge", x: 1310, y: 1236, w: 40, h: 44 },
+  { type: "vending", x: 1370, y: 1236, w: 44, h: 44 },
+  { type: "microwave", x: 1430, y: 1242, w: 36, h: 30 },
+  { type: "counter_long", x: 1560, y: 1240, w: 200, h: 36 },
+  { type: "dining_table", x: 1060, y: 1400, w: 90, h: 50 },
+  { type: "dining_table", x: 1060, y: 1570, w: 90, h: 50 },
+  { type: "dining_table", x: 1060, y: 1740, w: 90, h: 50 },
+  { type: "dining_table", x: 1310, y: 1400, w: 90, h: 50 },
+  { type: "dining_table", x: 1310, y: 1570, w: 90, h: 50 },
+  { type: "dining_table", x: 1310, y: 1740, w: 90, h: 50 },
+  { type: "dining_table", x: 1560, y: 1400, w: 90, h: 50 },
+  { type: "dining_table", x: 1560, y: 1570, w: 90, h: 50 },
+  { type: "stool", x: 1050, y: 1460, w: 18, h: 18 },
+  { type: "stool", x: 1085, y: 1460, w: 18, h: 18 },
+  { type: "stool", x: 1120, y: 1460, w: 18, h: 18 },
+  { type: "stool", x: 1050, y: 1630, w: 18, h: 18 },
+  { type: "stool", x: 1085, y: 1630, w: 18, h: 18 },
+  { type: "stool", x: 1120, y: 1630, w: 18, h: 18 },
+  { type: "stool", x: 1050, y: 1800, w: 18, h: 18 },
+  { type: "stool", x: 1085, y: 1800, w: 18, h: 18 },
+  { type: "stool", x: 1120, y: 1800, w: 18, h: 18 },
+  { type: "stool", x: 1300, y: 1460, w: 18, h: 18 },
+  { type: "stool", x: 1335, y: 1460, w: 18, h: 18 },
+  { type: "stool", x: 1370, y: 1460, w: 18, h: 18 },
+  { type: "stool", x: 1300, y: 1630, w: 18, h: 18 },
+  { type: "stool", x: 1335, y: 1630, w: 18, h: 18 },
+  { type: "stool", x: 1370, y: 1630, w: 18, h: 18 },
+  { type: "stool", x: 1550, y: 1460, w: 18, h: 18 },
+  { type: "stool", x: 1585, y: 1460, w: 18, h: 18 },
+  { type: "stool", x: 1620, y: 1460, w: 18, h: 18 },
+  { type: "stool", x: 1550, y: 1630, w: 18, h: 18 },
+  { type: "stool", x: 1585, y: 1630, w: 18, h: 18 },
+  { type: "stool", x: 1620, y: 1630, w: 18, h: 18 },
+  { type: "plant_big", x: 1930, y: 1230, w: 30, h: 30 },
+  { type: "plant_big", x: 1930, y: 2340, w: 30, h: 30 },
+
+  // ══════ 숲 (Forest) ══════
+  { type: "tree", x: 2080, y: 1280, w: 50, h: 60 },
+  { type: "tree", x: 2220, y: 1260, w: 50, h: 60 },
+  { type: "tree", x: 2380, y: 1300, w: 50, h: 60 },
+  { type: "tree", x: 2530, y: 1270, w: 50, h: 60 },
+  { type: "tree", x: 2680, y: 1290, w: 50, h: 60 },
+  { type: "tree", x: 2830, y: 1280, w: 50, h: 60 },
+  { type: "tree", x: 2120, y: 1510, w: 50, h: 60 },
+  { type: "tree", x: 2330, y: 1530, w: 50, h: 60 },
+  { type: "tree", x: 2570, y: 1490, w: 50, h: 60 },
+  { type: "tree", x: 2770, y: 1520, w: 50, h: 60 },
+  { type: "tree", x: 2170, y: 1760, w: 50, h: 60 },
+  { type: "tree", x: 2430, y: 1790, w: 50, h: 60 },
+  { type: "tree", x: 2630, y: 1740, w: 50, h: 60 },
+  { type: "tree", x: 2870, y: 1770, w: 50, h: 60 },
+  { type: "tree", x: 2280, y: 2010, w: 50, h: 60 },
+  { type: "tree", x: 2530, y: 2030, w: 50, h: 60 },
+  { type: "tree", x: 2730, y: 1990, w: 50, h: 60 },
+  { type: "bush", x: 2060, y: 1410, w: 35, h: 28 },
+  { type: "bush", x: 2300, y: 1430, w: 35, h: 28 },
+  { type: "bush", x: 2470, y: 1660, w: 35, h: 28 },
+  { type: "bush", x: 2720, y: 1630, w: 35, h: 28 },
+  { type: "bush", x: 2170, y: 1910, w: 35, h: 28 },
+  { type: "bush", x: 2570, y: 1890, w: 35, h: 28 },
+  { type: "bush", x: 2820, y: 1910, w: 35, h: 28 },
+  { type: "bush", x: 2370, y: 2160, w: 35, h: 28 },
+  { type: "bench_park", x: 2320, y: 1420, w: 70, h: 30 },
+  { type: "bench_park", x: 2620, y: 1620, w: 70, h: 30 },
+  { type: "bench_park", x: 2220, y: 2110, w: 70, h: 30 },
+  { type: "plant_small", x: 2150, y: 1360, w: 22, h: 22 },
+  { type: "plant_small", x: 2450, y: 1560, w: 22, h: 22 },
+  { type: "plant_small", x: 2700, y: 1860, w: 22, h: 22 },
+
+  // ══════ 감옥 (Jail) ══════
+  { type: "jail_bench", x: 3150, y: 1420, w: 80, h: 28 },
+  { type: "jail_bench", x: 3420, y: 1420, w: 80, h: 28 },
+  { type: "jail_bench", x: 3150, y: 1720, w: 80, h: 28 },
+  { type: "jail_bench", x: 3420, y: 1720, w: 80, h: 28 },
+  { type: "jail_bench", x: 3280, y: 2020, w: 80, h: 28 },
 ];
 
 // All furniture is throwable — originals fly at full size and land at new position
@@ -567,21 +711,27 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
 }
 
-function drawFloor(ctx) {
+function drawFloor(ctx, vpX, vpY, vpW, vpH) {
   ctx.fillStyle = "#e0d6c8";
   ctx.fillRect(0, 0, MAP.width, MAP.height);
   for (const z of FLOOR_ZONES) {
     ctx.fillStyle = z.color;
     ctx.fillRect(z.x, z.y, z.w, z.h);
   }
-  // Subtle grid
+  // Subtle grid — only draw lines in viewport
   ctx.strokeStyle = "rgba(0,0,0,0.03)";
   ctx.lineWidth = 0.5;
-  for (let r = 0; r <= MAP.height / MAP.tileSize; r++) {
-    ctx.beginPath(); ctx.moveTo(0, r * MAP.tileSize); ctx.lineTo(MAP.width, r * MAP.tileSize); ctx.stroke();
+  const rStart = Math.max(0, Math.floor(vpY / MAP.tileSize));
+  const rEnd = Math.min(Math.ceil(MAP.height / MAP.tileSize), Math.ceil((vpY + vpH) / MAP.tileSize));
+  const cStart = Math.max(0, Math.floor(vpX / MAP.tileSize));
+  const cEnd = Math.min(Math.ceil(MAP.width / MAP.tileSize), Math.ceil((vpX + vpW) / MAP.tileSize));
+  for (let r = rStart; r <= rEnd; r++) {
+    const ry = r * MAP.tileSize;
+    ctx.beginPath(); ctx.moveTo(vpX, ry); ctx.lineTo(vpX + vpW, ry); ctx.stroke();
   }
-  for (let c = 0; c <= MAP.width / MAP.tileSize; c++) {
-    ctx.beginPath(); ctx.moveTo(c * MAP.tileSize, 0); ctx.lineTo(c * MAP.tileSize, MAP.height); ctx.stroke();
+  for (let c = cStart; c <= cEnd; c++) {
+    const cx = c * MAP.tileSize;
+    ctx.beginPath(); ctx.moveTo(cx, vpY); ctx.lineTo(cx, vpY + vpH); ctx.stroke();
   }
   // Zone labels
   ctx.font = "bold 32px 'Segoe UI', system-ui";
@@ -767,6 +917,95 @@ function drawFurniture(ctx, item) {
       ctx.strokeStyle = "rgba(120,100,80,0.2)"; ctx.lineWidth = 2;
       roundRect(ctx, x + 8, y + 8, w - 16, h - 16, 6); ctx.stroke();
       break;
+    case "hot_spring_pool":
+      ctx.fillStyle = "#5d4037"; roundRect(ctx, x, y, w, h, 12); ctx.fill();
+      ctx.fillStyle = "#4dd0e1"; roundRect(ctx, x+6, y+6, w-12, h-12, 8); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x+w*0.2+i*w*0.2, y+h*0.5+Math.sin(i*1.5)*10, 12, 0, Math.PI*2); ctx.fill(); }
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
+      for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.ellipse(x+w*0.3+i*w*0.2, y+h*0.3, 20, 5, 0, 0, Math.PI*2); ctx.fill(); }
+      break;
+    case "rock":
+      ctx.fillStyle = "#78909c"; ctx.beginPath();
+      ctx.moveTo(x+w*0.1, y+h*0.8); ctx.lineTo(x+w*0.3, y+h*0.1); ctx.lineTo(x+w*0.7, y+h*0.05);
+      ctx.lineTo(x+w*0.95, y+h*0.6); ctx.lineTo(x+w*0.8, y+h*0.95); ctx.lineTo(x+w*0.15, y+h*0.95);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#90a4ae"; ctx.beginPath();
+      ctx.moveTo(x+w*0.2, y+h*0.7); ctx.lineTo(x+w*0.35, y+h*0.2); ctx.lineTo(x+w*0.65, y+h*0.15);
+      ctx.lineTo(x+w*0.8, y+h*0.5); ctx.closePath(); ctx.fill();
+      break;
+    case "towel_rack":
+      ctx.fillStyle = "#8d6e63"; ctx.fillRect(x+2, y, 4, h); ctx.fillRect(x+w-6, y, 4, h);
+      ctx.fillRect(x, y+8, w, 4); ctx.fillRect(x, y+h*0.5, w, 4);
+      ctx.fillStyle = "#e8e5e0"; ctx.fillRect(x+4, y+12, w-8, 10);
+      ctx.fillStyle = "#bbdefb"; ctx.fillRect(x+4, y+h*0.5+4, w-8, 10);
+      break;
+    case "wooden_fence":
+      ctx.fillStyle = "#8d6e63"; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#a1887f";
+      for (let i = 0; i < Math.floor(w/15); i++) ctx.fillRect(x+2+i*15, y+2, 12, h-4);
+      ctx.fillStyle = "#6d4c41"; ctx.fillRect(x, y+h/2-1, w, 2);
+      break;
+    case "bar_counter":
+      ctx.fillStyle = "#3e2723"; roundRect(ctx, x, y, w, h, 4); ctx.fill();
+      ctx.fillStyle = "#4e342e"; roundRect(ctx, x+2, y+2, w-4, h-4, 3); ctx.fill();
+      ctx.fillStyle = "#5d4037"; ctx.fillRect(x+4, y+h-6, w-8, 4);
+      ctx.fillStyle = "#ffd54f"; ctx.beginPath(); ctx.arc(x+30, y+h/2, 5, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#ef5350"; ctx.beginPath(); ctx.arc(x+60, y+h/2, 5, 0, Math.PI*2); ctx.fill();
+      break;
+    case "karaoke_booth":
+      ctx.fillStyle = "#4a148c"; roundRect(ctx, x, y, w, h, 6); ctx.fill();
+      ctx.fillStyle = "#6a1b9a"; roundRect(ctx, x+4, y+4, w-8, h*0.5, 4); ctx.fill();
+      ctx.fillStyle = "#ce93d8"; ctx.fillRect(x+6, y+6, w-12, h*0.5-4);
+      ctx.fillStyle = "#333"; ctx.fillRect(x+w/2-3, y+h*0.6, 6, 16);
+      ctx.fillStyle = "#bbb"; ctx.beginPath(); ctx.arc(x+w/2, y+h*0.6, 6, 0, Math.PI*2); ctx.fill();
+      break;
+    case "pool_table":
+      ctx.fillStyle = "#5d4037"; roundRect(ctx, x, y, w, h, 6); ctx.fill();
+      ctx.fillStyle = "#2e7d32"; roundRect(ctx, x+6, y+6, w-12, h-12, 3); ctx.fill();
+      ctx.fillStyle = "#1b5e20";
+      ctx.beginPath(); ctx.moveTo(x+w/2, y+8); ctx.lineTo(x+w/2, y+h-8); ctx.strokeStyle="#fff"; ctx.lineWidth=1; ctx.stroke();
+      ctx.fillStyle = "#333";
+      const pockets = [[x+8,y+8],[x+w-8,y+8],[x+8,y+h-8],[x+w-8,y+h-8],[x+w/2,y+6],[x+w/2,y+h-6]];
+      for (const [px,py] of pockets) { ctx.beginPath(); ctx.arc(px,py,4,0,Math.PI*2); ctx.fill(); }
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x+w*0.35, y+h*0.4, 3, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#f44336"; ctx.beginPath(); ctx.arc(x+w*0.6, y+h*0.5, 3, 0, Math.PI*2); ctx.fill();
+      break;
+    case "dart_board":
+      ctx.fillStyle = "#5d4037"; ctx.fillRect(x, y, w, h);
+      const cx2 = x+w/2, cy2 = y+h/2, rings = [18,14,10,6,2];
+      const colors2 = ["#222","#e53935","#222","#43a047","#e53935"];
+      for (let i=0;i<rings.length;i++) { ctx.fillStyle=colors2[i]; ctx.beginPath(); ctx.arc(cx2,cy2,rings[i],0,Math.PI*2); ctx.fill(); }
+      break;
+    case "disco_ball":
+      const dcx = x+w/2, dcy = y+h/2;
+      ctx.fillStyle = "#bdbdbd"; ctx.beginPath(); ctx.arc(dcx, dcy, w/2, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#999"; ctx.lineWidth = 0.5;
+      for (let i=0;i<6;i++) { ctx.beginPath(); ctx.arc(dcx, dcy, w/2, i*Math.PI/3, i*Math.PI/3+0.1); ctx.lineTo(dcx,dcy); ctx.stroke(); }
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(dcx-3, dcy-3, 3, 0, Math.PI*2); ctx.fill();
+      break;
+    case "tree":
+      ctx.fillStyle = "#5d4037"; ctx.fillRect(x+w/2-6, y+h*0.5, 12, h*0.5);
+      ctx.fillStyle = "#2e7d32"; ctx.beginPath(); ctx.arc(x+w/2, y+h*0.35, w*0.45, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#388e3c"; ctx.beginPath(); ctx.arc(x+w/2-6, y+h*0.28, w*0.3, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#43a047"; ctx.beginPath(); ctx.arc(x+w/2+5, y+h*0.22, w*0.25, 0, Math.PI*2); ctx.fill();
+      break;
+    case "bush":
+      ctx.fillStyle = "#388e3c"; ctx.beginPath(); ctx.ellipse(x+w/2, y+h*0.6, w/2, h*0.45, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#4caf50"; ctx.beginPath(); ctx.ellipse(x+w*0.35, y+h*0.45, w*0.3, h*0.35, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#66bb6a"; ctx.beginPath(); ctx.ellipse(x+w*0.65, y+h*0.4, w*0.25, h*0.3, 0, 0, Math.PI*2); ctx.fill();
+      break;
+    case "bench_park":
+      ctx.fillStyle = "#8d6e63"; ctx.fillRect(x, y+4, w, 6); ctx.fillRect(x, y+h-8, w, 6);
+      ctx.fillStyle = "#6d4c41";
+      ctx.fillRect(x+6, y, 6, h); ctx.fillRect(x+w-12, y, 6, h);
+      ctx.fillStyle = "#a1887f"; ctx.fillRect(x+2, y+6, w-4, 3); ctx.fillRect(x+2, y+h-6, w-4, 3);
+      break;
+    case "jail_bench":
+      ctx.fillStyle = "#78909c"; ctx.fillRect(x, y+h-6, w, 6);
+      ctx.fillStyle = "#607d8b"; ctx.fillRect(x+4, y, 4, h); ctx.fillRect(x+w-8, y, 4, h);
+      ctx.fillStyle = "#90a4ae"; ctx.fillRect(x+2, y+h/2-2, w-4, 4);
+      break;
   }
 }
 
@@ -907,50 +1146,68 @@ function simplifyPath(path) {
   return s;
 }
 
+function findJumpLanding(fromX, fromY, toX, toY) {
+  const dx = toX - fromX, dy = toY - fromY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 1) return { x: fromX, y: fromY };
+  const steps = Math.ceil(dist / 8);
+  let lastX = fromX, lastY = fromY;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const px = fromX + dx * t, py = fromY + dy * t;
+    if (checkCollision(px, py)) break;
+    lastX = px; lastY = py;
+  }
+  return { x: lastX, y: lastY };
+}
+
 // ═══════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════
-var socket;
-var currentRoomCode = "";
-var localPlayer = null;
-var remotePlayers = new Map();
-var chatBubbles = new Map();
-var keys = {};
-var gameRunning = false;
+let socket;
+let currentRoomCode = "";
+let localPlayer = null;
+let remotePlayers = new Map();
+let chatBubbles = new Map();
+let keys = {};
+let gameRunning = false;
 let selectedCharacter = 0;
 let lastTime = 0;
 let lastPositionSend = 0;
-let movePath = null; // Array of {x,y} waypoints
+let movePath = null;
 let movePathIdx = 0;
-let moveTarget = null; // final destination for indicator
+let moveTarget = null;
 let currentCamX = 0, currentCamY = 0;
-var hoverTarget = null; // { type, id, data }
-var flyingPlayers = [];
-var stunnedPlayers = new Map();
-var flyingProps = [];
-var flyingFurnSet = new Set(); // furniture indices currently in flight
-var wobblePlayers = new Map();
-var auraParticles = new Map();
+let hoverTarget = null;
+let flyingPlayers = [];
+let stunnedPlayers = new Map();
+let flyingProps = [];
+let flyingFurnSet = new Set();
+let wobblePlayers = new Map();
+let auraParticles = new Map();
 // Jump state
-var isJumping = false;
-var jumpStartTime = 0;
-var jumpFromX = 0, jumpFromY = 0;
-var jumpToX = 0, jumpToY = 0;
-var jumpDirX = 0, jumpDirY = 0; // direction at jump start
+let isJumping = false;
+let jumpStartTime = 0;
+let jumpFromX = 0, jumpFromY = 0;
+let jumpToX = 0, jumpToY = 0;
+let jumpDirX = 0, jumpDirY = 0;
 // Original furniture positions for robot vacuum
-var FURNITURE_ORIG = null;
-var robotVacuums = []; // array of vacuum objects
+let FURNITURE_ORIG = null;
+let robotVacuums = [];
 
-var footstepTimer = 0;
-const FOOTSTEP_INTERVAL = 250; // ms between footstep sounds (~4/sec)
+let footstepTimer = 0;
+const FOOTSTEP_INTERVAL = 250;
 
-// High-five state
-var pendingHighfive = null;  // { fromId, toId, time }
-var incomingHighfive = null; // { fromId, time }
-var highfiveAnims = [];      // [{ p1, p2, startTime }]
-const HIGHFIVE_RANGE = 60;
-const HIGHFIVE_TIMEOUT = 5000;
-const HIGHFIVE_ANIM_DURATION = 800;
+// Backslap state (replaces highfive)
+let lastBackslapTime = 0;
+const BACKSLAP_COOLDOWN = 1000;
+const BACKSLAP_RANGE = 60;
+let backslapEffects = []; // { x, y, startTime }
+
+// Throw count + jail state
+let playerThrowCounts = new Map();
+let localJailUntil = 0;
+let localThrowCooldownUntil = 0;
 
 const SPEED = 150;
 const POSITION_SEND_INTERVAL = 50;
@@ -962,7 +1219,7 @@ const WOBBLE_DURATION = 500;
 const THROW_RANGE = 80;
 const INTERACT_RANGE = 80;
 const JUMP_DURATION = 350;
-const JUMP_DIST_MOVING = 80; // leap distance when moving
+const JUMP_DIST_MOVING = 80;
 const JUMP_HEIGHT = 30;
 
 // ═══════════════════════════════════════════
@@ -1055,7 +1312,7 @@ function playFootstep() {
     const src = audioCtx.createBufferSource();
     src.buffer = buf;
     const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.07, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
     const filter = audioCtx.createBiquadFilter();
     filter.type = "bandpass";
@@ -1066,26 +1323,26 @@ function playFootstep() {
   } catch (e) {}
 }
 
-function playHighfiveSound() {
+function playSlapSound() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const bufSize = Math.floor(audioCtx.sampleRate * 0.08);
+    const bufSize = Math.floor(audioCtx.sampleRate * 0.06);
     const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
     const data = buf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.15));
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.08));
     const src = audioCtx.createBufferSource();
     src.buffer = buf;
     const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
     const filter = audioCtx.createBiquadFilter();
-    filter.type = "highpass"; filter.frequency.value = 800;
+    filter.type = "bandpass"; filter.frequency.value = 1200; filter.Q.value = 1;
     src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
-    src.start(); src.stop(audioCtx.currentTime + 0.1);
+    src.start(); src.stop(audioCtx.currentTime + 0.08);
   } catch (e) {}
 }
 
-var vacuumSoundNodes = null;
+let vacuumSoundNodes = null;
 function playVacuumSound() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1125,8 +1382,8 @@ const NAME_COLORS = [
   "#e2b714", "#4facfe", "#f093fb", "#2ecc71", "#e74c3c",
   "#ff9800", "#00bcd4", "#ab47bc", "#ef5350", "#26c6da",
 ];
-var playerColorMap = new Map();
-var usedColorIdx = 0;
+let playerColorMap = new Map();
+let usedColorIdx = 0;
 function getPlayerColor(playerId) {
   if (playerColorMap.has(playerId)) return playerColorMap.get(playerId);
   const color = NAME_COLORS[usedColorIdx % NAME_COLORS.length];
@@ -1138,7 +1395,7 @@ function getPlayerColor(playerId) {
 // ═══════════════════════════════════════════
 //  CHAT POPUP
 // ═══════════════════════════════════════════
-var chatPopupWindow = null;
+let chatPopupWindow = null;
 function openChatPopup() {
   if (chatPopupWindow && !chatPopupWindow.closed) { chatPopupWindow.focus(); return; }
   chatPopupWindow = window.open("", "PactChat", "width=360,height=600,resizable=yes");
@@ -1470,7 +1727,13 @@ function joinRoom() {
 
   socket.on("player-left", ({ id }) => {
     const p = remotePlayers.get(id);
-    if (p) { addSystemMessage(p.name + " left"); remotePlayers.delete(id); chatBubbles.delete(id); auraParticles.delete(id); updateHUD(); }
+    if (p) {
+      addSystemMessage(p.name + " left");
+      remotePlayers.delete(id); chatBubbles.delete(id); auraParticles.delete(id);
+      stunnedPlayers.delete(id); wobblePlayers.delete(id); playerColorMap.delete(id);
+      playerThrowCounts.delete(id);
+      updateHUD();
+    }
   });
 
   socket.on("chat-message", ({ id, name: sn, text }) => {
@@ -1492,20 +1755,77 @@ function joinRoom() {
     if (id === socket.id) updateStatusButtons();
   });
 
-  socket.on("highfive-request", ({ fromId, toId }) => {
-    if (toId === socket.id) {
-      incomingHighfive = { fromId, time: Date.now() };
-    }
-    if (fromId === socket.id) {
-      pendingHighfive = { fromId, toId, time: Date.now() };
+  // Backslap
+  socket.on("backslap-animate", ({ fromId, toId }) => {
+    const target = toId === socket.id ? localPlayer : remotePlayers.get(toId);
+    if (target) {
+      wobblePlayers.set(toId, { startTime: Date.now() });
+      backslapEffects.push({ x: target.x, y: target.y - 30, startTime: Date.now() });
+      playSlapSound();
     }
   });
 
-  socket.on("highfive-animate", ({ player1, player2 }) => {
-    highfiveAnims.push({ p1: player1, p2: player2, startTime: Date.now() });
-    pendingHighfive = null;
-    incomingHighfive = null;
-    playHighfiveSound();
+  // Jump visualization for remote players
+  socket.on("player-jumped", ({ id, fromX, fromY, toX, toY, direction }) => {
+    const p = remotePlayers.get(id);
+    if (p) {
+      p.jumpFrom = { x: fromX, y: fromY };
+      p.jumpTo = { x: toX, y: toY };
+      p.jumpStart = Date.now();
+      p.x = fromX; p.y = fromY;
+      p.targetX = toX; p.targetY = toY;
+      p.direction = direction;
+    }
+  });
+
+  // Throw count + jail
+  socket.on("throw-count-update", ({ id, count }) => {
+    playerThrowCounts.set(id, count);
+  });
+  socket.on("player-jailed", ({ id, x, y, duration }) => {
+    if (id === socket.id && localPlayer) {
+      localPlayer.x = x; localPlayer.y = y;
+      localJailUntil = Date.now() + duration;
+      movePath = null; moveTarget = null;
+      addSystemMessage("감옥에 갇혔습니다! " + Math.round(duration/1000) + "초 후 석방됩니다.");
+    } else {
+      const p = remotePlayers.get(id);
+      if (p) { p.x = x; p.y = y; p.targetX = x; p.targetY = y; p.jailUntil = Date.now() + duration; }
+      const name = p ? p.name : "???";
+      addSystemMessage(name + " 감옥에 갇혔습니다!");
+    }
+  });
+  socket.on("player-unjailed", ({ id }) => {
+    if (id === socket.id) {
+      localJailUntil = 0;
+      addSystemMessage("석방되었습니다!");
+    } else {
+      const p = remotePlayers.get(id);
+      if (p) p.jailUntil = 0;
+    }
+    playerThrowCounts.set(id, 0);
+  });
+  socket.on("throw-cooldown", ({ remaining }) => {
+    localThrowCooldownUntil = Date.now() + remaining;
+  });
+  // Prop hit confirmation from server
+  socket.on("prop-hit-confirmed", ({ targetId, knockX, knockY, hitterId }) => {
+    const isMe = targetId === socket.id;
+    const target = isMe ? localPlayer : remotePlayers.get(targetId);
+    if (!target) return;
+    stunnedPlayers.set(targetId, { startTime: Date.now() });
+    flyingPlayers.push({ playerId: targetId, charIdx: target.character, name: target.name,
+      fromX: target.x, fromY: target.y, toX: knockX, toY: knockY, startTime: Date.now() });
+    setTimeout(() => {
+      if (isMe && localPlayer) { localPlayer.x = knockX; localPlayer.y = knockY; movePath = null; moveTarget = null; }
+      else { const rp = remotePlayers.get(targetId); if (rp) { rp.x = knockX; rp.y = knockY; rp.targetX = knockX; rp.targetY = knockY; } }
+    }, THROW_FLY_DURATION);
+    playHitSound();
+  });
+  // Connection rejected (anti-bot)
+  socket.on("connection-rejected", ({ reason }) => {
+    document.getElementById("overlay").style.display = "flex";
+    document.getElementById("overlay-text").textContent = reason;
   });
 
   socket.on("throw-object", ({ id, targetId, fromX, fromY, toX, toY }) => {
@@ -1539,7 +1859,7 @@ function joinRoom() {
     document.getElementById("overlay-text").textContent = "Reconnecting...";
   });
 
-  socket.on("reconnect", () => {
+  socket.io.on("reconnect", () => {
     socket.emit("join-room", { roomCode: currentRoomCode, name, character: selectedCharacter });
   });
 
@@ -1654,6 +1974,9 @@ document.getElementById("throw-btn").addEventListener("click", () => {
 
 function throwPlayer(targetId, targetPlayer) {
   if (!localPlayer || !socket) return;
+  if (robotVacuums.length > 0) return;
+  if (Date.now() < localThrowCooldownUntil) return;
+  if (localJailUntil > Date.now()) return;
   const dx = targetPlayer.x - localPlayer.x, dy = targetPlayer.y - localPlayer.y;
   const dist = Math.sqrt(dx*dx + dy*dy) || 1;
   const throwDist = 150 + Math.random() * 50;
@@ -1662,10 +1985,14 @@ function throwPlayer(targetId, targetPlayer) {
   toX = Math.max(30, Math.min(MAP.width - 30, toX));
   toY = Math.max(30, Math.min(MAP.height - 50, toY));
   socket.emit("throw-object", { targetId, fromX: targetPlayer.x, fromY: targetPlayer.y, toX, toY });
+  localThrowCooldownUntil = Date.now() + 10000;
 }
 
 function throwFurniture(fdata) {
   if (!localPlayer || !socket) return;
+  if (robotVacuums.length > 0) return;
+  if (Date.now() < localThrowCooldownUntil) return;
+  if (localJailUntil > Date.now()) return;
   // Physical direction: furniture flies AWAY from player
   const dx = fdata.x - localPlayer.x;
   const dy = fdata.y - localPlayer.y;
@@ -1675,7 +2002,8 @@ function throwFurniture(fdata) {
   let targetY = fdata.y + (dy / dist) * throwDist;
   targetX = Math.max(30, Math.min(MAP.width - 30, targetX));
   targetY = Math.max(30, Math.min(MAP.height - 50, targetY));
-  socket.emit("throw-prop", { propId: null, propType: fdata.ftype, fromX: fdata.x, fromY: fdata.y, toX: targetX, toY: targetY, furnW: fdata.w, furnH: fdata.h, furnIdx: fdata.idx });
+  socket.emit("throw-prop", { propType: fdata.ftype, fromX: fdata.x, fromY: fdata.y, toX: targetX, toY: targetY, furnW: fdata.w, furnH: fdata.h, furnIdx: fdata.idx });
+  localThrowCooldownUntil = Date.now() + 10000;
 }
 
 function drawFlyingPlayer(ctx, obj, now) {
@@ -1762,28 +2090,40 @@ window.addEventListener("keydown", (e) => {
     movePath = null; moveTarget = null;
   }
   if (e.code === "Enter" && gameRunning) { document.getElementById("chat-input").focus(); e.preventDefault(); }
-  if (e.code === "Space" && gameRunning && !isJumping) {
+  if (e.code === "Space" && gameRunning && !isJumping && localPlayer) {
     e.preventDefault();
     isJumping = true; jumpStartTime = Date.now();
     jumpFromX = localPlayer.x; jumpFromY = localPlayer.y;
-    // If moving, leap in movement direction
-    const moving = localPlayer.isMoving;
-    if (moving) {
+    // Diagonal jump support — compute direction from pressed keys
+    let jdx = 0, jdy = 0;
+    if (keys["ArrowUp"] || keys["KeyW"]) jdy = -1;
+    if (keys["ArrowDown"] || keys["KeyS"]) jdy = 1;
+    if (keys["ArrowLeft"] || keys["KeyA"]) jdx = -1;
+    if (keys["ArrowRight"] || keys["KeyD"]) jdx = 1;
+    if (jdx === 0 && jdy === 0 && localPlayer.isMoving) {
       const dir = localPlayer.direction;
-      jumpDirX = dir === "left" ? -1 : dir === "right" ? 1 : 0;
-      jumpDirY = dir === "up" ? -1 : dir === "down" ? 1 : 0;
-      jumpToX = jumpFromX + jumpDirX * JUMP_DIST_MOVING;
-      jumpToY = jumpFromY + jumpDirY * JUMP_DIST_MOVING;
-      jumpToX = Math.max(24, Math.min(MAP.width - 24, jumpToX));
-      jumpToY = Math.max(24, Math.min(MAP.height - 40, jumpToY));
-    } else {
-      jumpDirX = 0; jumpDirY = 0;
-      jumpToX = jumpFromX; jumpToY = jumpFromY;
+      jdx = dir === "left" ? -1 : dir === "right" ? 1 : 0;
+      jdy = dir === "up" ? -1 : dir === "down" ? 1 : 0;
     }
-    // Broadcast jump
-    if (socket) socket.emit("move", { x: localPlayer.x, y: localPlayer.y, direction: localPlayer.direction });
+    if (jdx !== 0 && jdy !== 0) { jdx *= 0.707; jdy *= 0.707; }
+    jumpDirX = jdx; jumpDirY = jdy;
+    let rawToX = jumpFromX + jdx * JUMP_DIST_MOVING;
+    let rawToY = jumpFromY + jdy * JUMP_DIST_MOVING;
+    rawToX = Math.max(24, Math.min(MAP.width - 24, rawToX));
+    rawToY = Math.max(24, Math.min(MAP.height - 40, rawToY));
+    // Collision sampling along jump path (8px steps)
+    const landing = findJumpLanding(jumpFromX, jumpFromY, rawToX, rawToY);
+    jumpToX = landing.x; jumpToY = landing.y;
+    // Compute direction string for server
+    let dirStr = localPlayer.direction;
+    if (Math.abs(jdx) > Math.abs(jdy)) dirStr = jdx < 0 ? "left" : "right";
+    else if (jdy !== 0) dirStr = jdy < 0 ? "up" : "down";
+    localPlayer.direction = dirStr;
+    // Send jump event to server
+    if (socket) socket.emit("jump", { fromX: jumpFromX, fromY: jumpFromY, toX: jumpToX, toY: jumpToY, direction: dirStr });
   }
   if (e.code === "KeyT" && gameRunning) {
+    if (robotVacuums.length > 0) return;
     if (hoverTarget) {
       if (hoverTarget.type === "player") throwPlayer(hoverTarget.id, hoverTarget.data);
       else if (hoverTarget.type === "furniture") throwFurniture(hoverTarget.data);
@@ -1792,14 +2132,9 @@ window.addEventListener("keydown", (e) => {
   }
   if (e.code === "KeyH" && gameRunning && localPlayer) {
     if (document.activeElement === document.getElementById("chat-input")) return;
-    // If there's an incoming high-five request, accept it
-    if (incomingHighfive && Date.now() - incomingHighfive.time < HIGHFIVE_TIMEOUT) {
-      socket.emit("highfive-accept", { fromId: incomingHighfive.fromId });
-      incomingHighfive = null;
-      return;
-    }
-    // Otherwise, find nearest player within range and request
-    let nearest = null, nearestDist = HIGHFIVE_RANGE;
+    const now = Date.now();
+    if (now - lastBackslapTime < BACKSLAP_COOLDOWN) return;
+    let nearest = null, nearestDist = BACKSLAP_RANGE;
     for (const [id, p] of remotePlayers) {
       const dx = p.x - localPlayer.x, dy = p.y - localPlayer.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1808,8 +2143,8 @@ window.addEventListener("keydown", (e) => {
       }
     }
     if (nearest) {
-      socket.emit("highfive-request", { targetId: nearest.id });
-      pendingHighfive = { fromId: socket.id, toId: nearest.id, time: Date.now() };
+      socket.emit("backslap", { targetId: nearest.id });
+      lastBackslapTime = now;
     }
   }
 });
@@ -1818,6 +2153,7 @@ window.addEventListener("keyup", (e) => { keys[e.code] = false; });
 // Mouse move for throw hover (always active — no throwMode needed)
 document.getElementById("game-canvas").addEventListener("mousemove", (e) => {
   if (!localPlayer || !gameRunning) { hoverTarget = null; return; }
+  if (robotVacuums.length > 0) { hoverTarget = null; document.getElementById("game-area").style.cursor = "default"; return; }
   const canvas = e.target, rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   const sx = canvas.width / dpr / rect.width, sy = canvas.height / dpr / rect.height;
@@ -1850,6 +2186,12 @@ document.getElementById("game-canvas").addEventListener("click", (e) => {
   const worldX = (e.clientX - rect.left) * sx - currentCamX;
   const worldY = (e.clientY - rect.top) * sy - currentCamY;
 
+  // Ignore clicks outside map bounds
+  if (worldX < 0 || worldX > MAP.width || worldY < 0 || worldY > MAP.height) return;
+  // Jail movement restriction
+  if (localJailUntil > Date.now()) {
+    if (worldX < JAIL.x + 20 || worldX > JAIL.x + JAIL.w - 20 || worldY < JAIL.y + 20 || worldY > JAIL.y + JAIL.h - 20) return;
+  }
   // Pathfinding click-to-move
   const path = findPath(localPlayer.x, localPlayer.y, worldX, worldY);
   if (path && path.length > 0) {
@@ -1937,6 +2279,11 @@ function handleInput(dt) {
 
   localPlayer.x = Math.max(24, Math.min(MAP.width - 24, localPlayer.x));
   localPlayer.y = Math.max(24, Math.min(MAP.height - 40, localPlayer.y));
+  // Jail movement restriction
+  if (localJailUntil > Date.now()) {
+    localPlayer.x = Math.max(JAIL.x + 20, Math.min(JAIL.x + JAIL.w - 20, localPlayer.x));
+    localPlayer.y = Math.max(JAIL.y + 20, Math.min(JAIL.y + JAIL.h - 20, localPlayer.y));
+  }
   sendPosition();
 }
 
@@ -1952,15 +2299,29 @@ function sendPosition() {
 // ═══════════════════════════════════════════
 function update(dt) {
   const now = Date.now();
-  // Remote player interpolation
+  // Remote player interpolation + jump animation
   for (const [id, p] of remotePlayers) {
-    if (p.targetX !== undefined) {
+    // Remote jump arc
+    if (p.jumpStart) {
+      const elapsed = now - p.jumpStart;
+      const t = Math.min(1, elapsed / JUMP_DURATION);
+      p.x = p.jumpFrom.x + (p.jumpTo.x - p.jumpFrom.x) * t;
+      p.y = p.jumpFrom.y + (p.jumpTo.y - p.jumpFrom.y) * t;
+      p.jumpOffset = -Math.sin(t * Math.PI) * JUMP_HEIGHT;
+      p.isMoving = false;
+      if (t >= 1) {
+        p.jumpStart = null; p.jumpOffset = 0;
+        p.x = p.jumpTo.x; p.y = p.jumpTo.y;
+        p.targetX = p.jumpTo.x; p.targetY = p.jumpTo.y;
+      }
+    } else if (p.targetX !== undefined) {
       const ox = p.x, oy = p.y;
       p.x += (p.targetX - p.x) * 0.18;
       p.y += (p.targetY - p.y) * 0.18;
       if (Math.abs(p.targetX - p.x) < 0.5) p.x = p.targetX;
       if (Math.abs(p.targetY - p.y) < 0.5) p.y = p.targetY;
       p.isMoving = Math.abs(p.x - ox) > 0.1 || Math.abs(p.y - oy) > 0.1;
+      p.jumpOffset = 0;
     }
   }
 
@@ -2000,32 +2361,31 @@ function update(dt) {
         flyingFurnSet.delete(fi);
         needNavRebuild = true;
       }
-      // Check hit on any player near landing — knockback in throw direction
-      const throwDx = fp.toX - fp.fromX, throwDy = fp.toY - fp.fromY;
-      const throwDist = Math.sqrt(throwDx*throwDx + throwDy*throwDy) || 1;
-      const knockDirX = throwDx / throwDist, knockDirY = throwDy / throwDist;
-      const knockDist = 60 + Math.random() * 40;
-      const hitCheck = (px, py, pid) => {
-        const dx = px - fp.toX, dy = py - fp.toY;
-        return Math.sqrt(dx*dx + dy*dy) < 35 && pid !== fp.throwerId;
-      };
-      for (const [id, p] of remotePlayers) {
-        if (hitCheck(p.x, p.y, id)) {
-          stunnedPlayers.set(id, { startTime: now });
-          const kx = Math.max(30, Math.min(MAP.width-30, p.x + knockDirX * knockDist));
-          const ky = Math.max(30, Math.min(MAP.height-50, p.y + knockDirY * knockDist));
-          flyingPlayers.push({ playerId: id, charIdx: p.character, name: p.name, fromX: p.x, fromY: p.y, toX: kx, toY: ky, startTime: now });
-          setTimeout(() => { const rp = remotePlayers.get(id); if (rp) { rp.x = kx; rp.y = ky; rp.targetX = kx; rp.targetY = ky; } }, THROW_FLY_DURATION);
-          playHitSound(); break;
+      // Hit detection — only the thrower performs it, sends prop-hit to server
+      if (socket && fp.throwerId === socket.id) {
+        const throwDx = fp.toX - fp.fromX, throwDy = fp.toY - fp.fromY;
+        const throwDist = Math.sqrt(throwDx*throwDx + throwDy*throwDy) || 1;
+        const knockDirX = throwDx / throwDist, knockDirY = throwDy / throwDist;
+        const knockDist = 60 + Math.random() * 40;
+        const hitCheck = (px, py, pid) => {
+          const dx = px - fp.toX, dy = py - fp.toY;
+          return Math.sqrt(dx*dx + dy*dy) < 35 && pid !== fp.throwerId;
+        };
+        let hitId = null;
+        for (const [id, p] of remotePlayers) {
+          if (hitCheck(p.x, p.y, id)) { hitId = id; break; }
         }
-      }
-      if (localPlayer && socket && hitCheck(localPlayer.x, localPlayer.y, socket.id)) {
-        stunnedPlayers.set(socket.id, { startTime: now });
-        const kx = Math.max(30, Math.min(MAP.width-30, localPlayer.x + knockDirX * knockDist));
-        const ky = Math.max(30, Math.min(MAP.height-50, localPlayer.y + knockDirY * knockDist));
-        flyingPlayers.push({ playerId: socket.id, charIdx: localPlayer.character, name: localPlayer.name, fromX: localPlayer.x, fromY: localPlayer.y, toX: kx, toY: ky, startTime: now });
-        setTimeout(() => { if (localPlayer) { localPlayer.x = kx; localPlayer.y = ky; movePath = null; moveTarget = null; } }, THROW_FLY_DURATION);
-        playHitSound();
+        if (!hitId && localPlayer && hitCheck(localPlayer.x, localPlayer.y, socket.id)) {
+          hitId = socket.id;
+        }
+        if (hitId) {
+          const target = hitId === socket.id ? localPlayer : remotePlayers.get(hitId);
+          if (target) {
+            const kx = Math.max(30, Math.min(MAP.width-30, target.x + knockDirX * knockDist));
+            const ky = Math.max(30, Math.min(MAP.height-50, target.y + knockDirY * knockDist));
+            socket.emit("prop-hit", { targetId: hitId, knockX: kx, knockY: ky });
+          }
+        }
       }
       playLandSound();
       flyingProps.splice(i, 1);
@@ -2033,8 +2393,8 @@ function update(dt) {
   }
   if (needNavRebuild) buildNavGrid();
 
-  // Update robot vacuum
-  updateVacuum(now);
+  // Update robot vacuum (pass real dt)
+  updateVacuum(now, dt);
 
   // Update throw button state (always-on hover system)
   const vacuumActive = robotVacuums.length > 0;
@@ -2049,9 +2409,6 @@ function update(dt) {
     hoverTarget = null;
   }
 
-  // High-five timeout cleanup
-  if (pendingHighfive && Date.now() - pendingHighfive.time > HIGHFIVE_TIMEOUT) pendingHighfive = null;
-  if (incomingHighfive && Date.now() - incomingHighfive.time > HIGHFIVE_TIMEOUT) incomingHighfive = null;
 }
 
 // ═══════════════════════════════════════════
@@ -2074,7 +2431,9 @@ function render() {
   ctx.save();
   ctx.translate(Math.floor(camX), Math.floor(camY));
 
-  drawFloor(ctx);
+  // Viewport for culling
+  const vpX = -camX, vpY = -camY, vpW = lw, vpH = lh;
+  drawFloor(ctx, vpX, vpY, vpW, vpH);
   for (let fi = 0; fi < FURNITURE.length; fi++) { const f = FURNITURE[fi]; if (f.type === "rug" && !flyingFurnSet.has(fi)) drawFurniture(ctx, f); }
   drawWalls(ctx);
 
@@ -2194,32 +2553,47 @@ function render() {
         }
       }
 
-      // High-five indicator
+      // Backslap hint (near players)
       if (!d.isSelf && localPlayer && !isPlayerFlying(d.id) && !stunnedPlayers.has(d.id)) {
         const dx = d.data.x - localPlayer.x, dy = d.data.y - localPlayer.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < HIGHFIVE_RANGE) {
-          // Incoming request from this player
-          if (incomingHighfive && incomingHighfive.fromId === d.id && Date.now() - incomingHighfive.time < HIGHFIVE_TIMEOUT) {
-            const pulse = 0.6 + Math.sin(now / 150) * 0.4;
-            ctx.save(); ctx.globalAlpha = pulse;
-            ctx.font = "14px serif"; ctx.textAlign = "center";
-            ctx.fillText("🤚", d.data.x, d.data.y - 40);
-            ctx.font = "bold 8px 'Segoe UI', system-ui, sans-serif";
-            ctx.fillStyle = "#4fc3f7";
-            ctx.fillText("Press H!", d.data.x, d.data.y - 46);
-            ctx.restore();
-          } else if (!pendingHighfive && !incomingHighfive) {
-            // Show subtle hint
-            const hintAlpha = 0.2 + Math.sin(now / 500) * 0.1;
-            ctx.save(); ctx.globalAlpha = hintAlpha;
-            ctx.font = "10px serif"; ctx.textAlign = "center";
-            ctx.fillText("🤚", d.data.x + 16, d.data.y - 24);
-            ctx.font = "bold 7px 'Segoe UI', system-ui, sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.6)";
-            ctx.fillText("H", d.data.x + 16, d.data.y - 14);
-            ctx.restore();
-          }
+        if (dist < BACKSLAP_RANGE) {
+          const hintAlpha = 0.2 + Math.sin(now / 500) * 0.1;
+          ctx.save(); ctx.globalAlpha = hintAlpha;
+          ctx.font = "10px serif"; ctx.textAlign = "center";
+          ctx.fillText("👋", d.data.x + 16, d.data.y - 24);
+          ctx.font = "bold 7px 'Segoe UI', system-ui, sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.6)";
+          ctx.fillText("H", d.data.x + 16, d.data.y - 14);
+          ctx.restore();
         }
+      }
+
+      // Throw count badge
+      const throwCount = playerThrowCounts.get(d.id) || 0;
+      if (throwCount > 0) {
+        const badgeColor = throwCount >= 8 ? "#e53935" : throwCount >= 5 ? "#ff9800" : "#888";
+        ctx.save();
+        ctx.font = "bold 9px 'Segoe UI', system-ui";
+        const tx = ctx.measureText(d.data.name).width / 2;
+        ctx.fillStyle = badgeColor;
+        ctx.beginPath(); ctx.arc(d.data.x + tx + 10, d.data.y + (d.data.jumpOffset || 0) - 18, 7, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(throwCount, d.data.x + tx + 10, d.data.y + (d.data.jumpOffset || 0) - 17.5);
+        ctx.restore();
+      }
+
+      // Jail countdown timer
+      const jailUntil = d.isSelf ? localJailUntil : (d.data.jailUntil || 0);
+      if (jailUntil > now) {
+        const remaining = Math.ceil((jailUntil - now) / 1000);
+        ctx.save();
+        ctx.font = "bold 12px 'Segoe UI', system-ui"; ctx.textAlign = "center";
+        ctx.fillStyle = "#e53935";
+        ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 2;
+        const timerText = "🔒 " + remaining + "s";
+        ctx.strokeText(timerText, d.data.x, d.data.y + (d.data.jumpOffset || 0) - 36);
+        ctx.fillText(timerText, d.data.x, d.data.y + (d.data.jumpOffset || 0) - 36);
+        ctx.restore();
       }
     }
   }
@@ -2250,26 +2624,19 @@ function render() {
     if (now - fp.startTime <= PROP_FLY_DURATION) drawFlyingPropItem(ctx, fp, now);
   }
 
-  // High-five animations
-  for (let i = highfiveAnims.length - 1; i >= 0; i--) {
-    const hf = highfiveAnims[i];
-    const elapsed = now - hf.startTime;
-    if (elapsed > HIGHFIVE_ANIM_DURATION) { highfiveAnims.splice(i, 1); continue; }
-    const t = elapsed / HIGHFIVE_ANIM_DURATION;
-    const p1 = hf.p1 === (socket ? socket.id : null) ? localPlayer : remotePlayers.get(hf.p1);
-    const p2 = hf.p2 === (socket ? socket.id : null) ? localPlayer : remotePlayers.get(hf.p2);
-    if (!p1 || !p2) continue;
-    const midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2;
-    const starAlpha = t < 0.3 ? t / 0.3 : 1 - (t - 0.3) / 0.7;
-    ctx.save(); ctx.globalAlpha = Math.max(0, starAlpha);
-    ctx.font = `${12 + t * 10}px serif`; ctx.textAlign = "center";
-    ctx.fillText("\uD83D\uDE4C", midX, midY - 20 - t * 18);
-    for (let s = 0; s < 5; s++) {
-      const a = (s / 5) * Math.PI * 2 + t * 3;
-      const r = 10 + t * 28;
-      ctx.font = "8px serif";
-      ctx.fillText("\u2728", midX + Math.cos(a) * r, midY - 10 + Math.sin(a) * r);
-    }
+  // Backslap "찰싹!" effects
+  for (let i = backslapEffects.length - 1; i >= 0; i--) {
+    const ef = backslapEffects[i];
+    const elapsed = now - ef.startTime;
+    if (elapsed > 800) { backslapEffects.splice(i, 1); continue; }
+    const t = elapsed / 800;
+    ctx.save();
+    ctx.globalAlpha = 1 - t;
+    ctx.font = "bold 14px 'Segoe UI', system-ui"; ctx.textAlign = "center";
+    ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 2;
+    ctx.fillStyle = "#ff4444";
+    ctx.strokeText("찰싹!", ef.x, ef.y - t * 30);
+    ctx.fillText("찰싹!", ef.x, ef.y - t * 30);
     ctx.restore();
   }
 
@@ -2313,11 +2680,11 @@ window.addEventListener("resize", () => {
 // ═══════════════════════════════════════════
 const VACUUM_COLORS = ["#4fc3f7", "#ab47bc", "#66bb6a", "#ff7043", "#ffd54f"]; // LED colors per vacuum
 const VACUUM_SPAWNS = [
-  { x: 800, y: 550 },
-  { x: 300, y: 500 },
-  { x: 1300, y: 500 },
-  { x: 150, y: 750 },
-  { x: 1400, y: 750 },
+  { x: 500, y: 540 },
+  { x: 1500, y: 540 },
+  { x: 2500, y: 540 },
+  { x: 3500, y: 540 },
+  { x: 2000, y: 1800 },
 ];
 
 function startVacuum() {
@@ -2378,9 +2745,9 @@ function startVacuum() {
   playVacuumSound();
 }
 
-function updateVacuum(now) {
+function updateVacuum(now, frameDt) {
   if (robotVacuums.length === 0) return;
-  const dt = 16 / 1000;
+  const dt = (frameDt || 16) / 1000;
   for (const rv of robotVacuums) {
     if (!rv.active) continue;
     if (rv.phase === "moving") {
@@ -2512,7 +2879,7 @@ document.getElementById("exit-btn").addEventListener("click", () => {
   flyingPlayers = []; flyingProps = []; flyingFurnSet.clear(); stunnedPlayers.clear(); wobblePlayers.clear();
   playerColorMap.clear(); usedColorIdx = 0;
   hoverTarget = null; movePath = null; moveTarget = null;
-  pendingHighfive = null; incomingHighfive = null; highfiveAnims = [];
+  backslapEffects = []; lastBackslapTime = 0; playerThrowCounts.clear(); localJailUntil = 0; localThrowCooldownUntil = 0;
   isJumping = false; if (robotVacuums.length > 0) stopVacuumSound(); robotVacuums = [];
   keys = {};
   // Reset furniture positions to originals
