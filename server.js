@@ -102,6 +102,17 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("throw-object", ({ fromX, fromY, toX, toY }) => {
+    if (!currentRoom || !currentPlayer) return;
+    socket.to(currentRoom).emit("throw-object", {
+      id: socket.id,
+      fromX: Number(fromX) || 0,
+      fromY: Number(fromY) || 0,
+      toX: Number(toX) || 0,
+      toY: Number(toY) || 0,
+    });
+  });
+
   socket.on("disconnect", () => {
     if (currentRoom && rooms.has(currentRoom)) {
       const room = rooms.get(currentRoom);

@@ -105,6 +105,8 @@ body {
 }
 .emoji-btn:hover { background: rgba(255,255,255,0.15); transform: scale(1.15); }
 .emoji-btn:active { transform: scale(0.95); }
+#throw-divider { width: 1px; background: rgba(255,255,255,0.15); margin: 4px 2px; }
+.emoji-btn.throw-active { background: rgba(226,183,20,0.3); box-shadow: 0 0 8px rgba(226,183,20,0.4); }
 
 /* ── HUD ── */
 #hud {
@@ -147,6 +149,8 @@ body {
     <button class="emoji-btn" data-emoji="👍">👍</button>
     <button class="emoji-btn" data-emoji="🔥">🔥</button>
     <button class="emoji-btn" data-emoji="❤️">❤️</button>
+    <div id="throw-divider"></div>
+    <button class="emoji-btn" id="throw-btn" title="Throw paper ball (T)">📄</button>
   </div>
 </div>
 
@@ -756,10 +760,53 @@ let lastTime = 0;
 let lastPositionSend = 0;
 let moveTarget = null; // {x, y} for click-to-move
 let currentCamX = 0, currentCamY = 0; // stored for click conversion
+let throwMode = false;
+const flyingObjects = []; // { fromX, fromY, toX, toY, startTime, throwerName }
+const hitEffects = []; // { x, y, startTime }
 
 const SPEED = 140;
 const POSITION_SEND_INTERVAL = 50;
 const BUBBLE_DURATION = 5000;
+const THROW_DURATION = 600; // ms for paper to fly
+const HIT_DURATION = 800;
+
+// ═══════════════════════════════════════════
+//  NOTIFICATION SOUND (Web Audio API)
+// ═══════════════════════════════════════════
+let audioCtx = null;
+function playNotificationSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.06);
+    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.2);
+  } catch (e) {}
+}
+
+function playThrowHitSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.15);
+  } catch (e) {}
+}
 
 // ═══════════════════════════════════════════
 //  ROOM CODE
@@ -878,11 +925,18 @@ function joinRoom() {
   socket.on("chat-message", ({ id, name: sn, text }) => {
     addChatMessage(sn, text, id === socket.id);
     chatBubbles.set(id, { text, startTime: Date.now() });
+    if (id !== socket.id) playNotificationSound();
   });
 
   socket.on("emoji-reaction", ({ id, emoji }) => {
     const player = id === socket.id ? localPlayer : remotePlayers.get(id);
     if (player) activeReactions.push({ playerId: id, emoji, startTime: Date.now(), x: player.x, y: player.y });
+  });
+
+  socket.on("throw-object", ({ id, fromX, fromY, toX, toY }) => {
+    if (id === socket.id) return; // already added locally
+    flyingObjects.push({ fromX, fromY, toX, toY, startTime: Date.now() });
+    setTimeout(() => checkThrowHit(toX, toY), THROW_DURATION);
   });
 
   socket.on("disconnect", () => {
@@ -923,7 +977,7 @@ function addSystemMessage(text) {
 
 document.getElementById("chat-input").addEventListener("keydown", (e) => {
   e.stopPropagation();
-  if (e.key === "Enter") {
+  if (e.key === "Enter" && !e.isComposing) {
     const text = e.target.value.trim();
     if (text && socket) { socket.emit("chat-message", { text }); e.target.value = ""; }
   }
@@ -934,8 +988,95 @@ document.getElementById("chat-input").addEventListener("keydown", (e) => {
 //  EMOJI
 // ═══════════════════════════════════════════
 document.querySelectorAll(".emoji-btn").forEach(btn => {
+  if (btn.id === "throw-btn") return; // handled separately
   btn.addEventListener("click", () => { if (socket) socket.emit("emoji-reaction", { emoji: btn.dataset.emoji }); });
 });
+
+// ═══════════════════════════════════════════
+//  THROW (Paper Ball)
+// ═══════════════════════════════════════════
+document.getElementById("throw-btn").addEventListener("click", () => {
+  throwMode = !throwMode;
+  document.getElementById("throw-btn").classList.toggle("throw-active", throwMode);
+  document.getElementById("game-area").style.cursor = throwMode ? "crosshair" : "pointer";
+});
+
+function throwPaperBall(toX, toY) {
+  if (!localPlayer || !socket) return;
+  const fromX = localPlayer.x;
+  const fromY = localPlayer.y;
+  socket.emit("throw-object", { fromX, fromY, toX, toY });
+  flyingObjects.push({ fromX, fromY, toX, toY, startTime: Date.now(), throwerName: localPlayer.name });
+  // Check if hit someone at landing
+  setTimeout(() => checkThrowHit(toX, toY), THROW_DURATION);
+}
+
+function checkThrowHit(lx, ly) {
+  for (const [id, p] of remotePlayers) {
+    const dx = p.x - lx, dy = p.y - ly;
+    if (Math.sqrt(dx*dx + dy*dy) < 30) {
+      hitEffects.push({ x: p.x, y: p.y, startTime: Date.now() });
+      playThrowHitSound();
+      return;
+    }
+  }
+  // Check self hit
+  if (localPlayer) {
+    const dx = localPlayer.x - lx, dy = localPlayer.y - ly;
+    if (Math.sqrt(dx*dx + dy*dy) < 30) {
+      hitEffects.push({ x: localPlayer.x, y: localPlayer.y, startTime: Date.now() });
+      playThrowHitSound();
+    }
+  }
+}
+
+function drawFlyingPaper(ctx, obj, now) {
+  const elapsed = now - obj.startTime;
+  const t = Math.min(1, elapsed / THROW_DURATION);
+  // Current position with parabolic arc
+  const px = obj.fromX + (obj.toX - obj.fromX) * t;
+  const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 60; // arc height
+  const rotation = t * Math.PI * 4; // spin
+
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(rotation);
+  // Paper ball
+  ctx.fillStyle = "#f5f0e8";
+  ctx.beginPath();
+  ctx.moveTo(-5, -4); ctx.lineTo(4, -5); ctx.lineTo(5, 3); ctx.lineTo(-3, 5); ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.15)"; ctx.lineWidth = 0.5; ctx.stroke();
+  // Crumple lines
+  ctx.strokeStyle = "rgba(0,0,0,0.1)";
+  ctx.beginPath(); ctx.moveTo(-2, -2); ctx.lineTo(2, 1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(-1, 3); ctx.stroke();
+  ctx.restore();
+
+  // Shadow on ground
+  const shadowAlpha = 0.15 * (1 - t * 0.5);
+  const groundY = obj.fromY + (obj.toY - obj.fromY) * t;
+  ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+  ctx.beginPath();
+  ctx.ellipse(px, groundY + 28, 4, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawHitEffect(ctx, effect, now) {
+  const elapsed = now - effect.startTime;
+  const t = elapsed / HIT_DURATION;
+  if (t > 1) return;
+  ctx.save();
+  ctx.globalAlpha = 1 - t;
+  // Star burst
+  const scale = 0.5 + t * 1.5;
+  ctx.translate(effect.x, effect.y - 10);
+  ctx.scale(scale, scale);
+  ctx.font = "16px serif";
+  ctx.textAlign = "center";
+  ctx.fillText("💥", 0, 0);
+  ctx.restore();
+}
 
 // ═══════════════════════════════════════════
 //  HUD
@@ -955,10 +1096,15 @@ window.addEventListener("keydown", (e) => {
     moveTarget = null;
   }
   if (e.key === "Enter" && gameRunning) { document.getElementById("chat-input").focus(); e.preventDefault(); }
+  if ((e.key === "t" || e.key === "T") && gameRunning) {
+    throwMode = !throwMode;
+    document.getElementById("throw-btn").classList.toggle("throw-active", throwMode);
+    document.getElementById("game-area").style.cursor = throwMode ? "crosshair" : "pointer";
+  }
 });
 window.addEventListener("keyup", (e) => { keys[e.key] = false; });
 
-// Click-to-move
+// Click-to-move (or throw)
 document.getElementById("game-canvas").addEventListener("click", (e) => {
   if (!localPlayer || !gameRunning) return;
   if (document.activeElement === document.getElementById("chat-input")) return;
@@ -972,6 +1118,14 @@ document.getElementById("game-canvas").addEventListener("click", (e) => {
 
   const worldX = clickX - currentCamX;
   const worldY = clickY - currentCamY;
+
+  if (throwMode) {
+    throwPaperBall(worldX, worldY);
+    throwMode = false;
+    document.getElementById("throw-btn").classList.remove("throw-active");
+    document.getElementById("game-area").style.cursor = "pointer";
+    return;
+  }
 
   // Don't move into walls
   if (!checkCollision(worldX, worldY)) {
@@ -1129,6 +1283,20 @@ function render() {
     ctx.textAlign = "center";
     ctx.fillText(r.emoji, r.x, r.y - 30 - progress * 50);
     ctx.restore();
+  }
+
+  // Flying paper balls
+  for (let i = flyingObjects.length - 1; i >= 0; i--) {
+    const obj = flyingObjects[i];
+    if (now - obj.startTime > THROW_DURATION) { flyingObjects.splice(i, 1); continue; }
+    drawFlyingPaper(ctx, obj, now);
+  }
+
+  // Hit effects
+  for (let i = hitEffects.length - 1; i >= 0; i--) {
+    const eff = hitEffects[i];
+    if (now - eff.startTime > HIT_DURATION) { hitEffects.splice(i, 1); continue; }
+    drawHitEffect(ctx, eff, now);
   }
 
   ctx.restore();
