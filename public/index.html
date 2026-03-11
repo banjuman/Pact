@@ -510,18 +510,61 @@ const FURNITURE = [
   { type: "rug", x: 1340, y: 560, w: 180, h: 120, noCollision: true },
 ];
 
-// Throwable props (small items near furniture)
+// Throwable props (all small items across the office)
 const THROWABLE_PROPS = [
-  { id: "mug1", type: "mug",     x: 140, y: 78 },
-  { id: "mug2", type: "mug",     x: 360, y: 78 },
-  { id: "mug3", type: "mug",     x: 580, y: 78 },
-  { id: "paper1", type: "paper", x: 200, y: 230 },
-  { id: "paper2", type: "paper", x: 420, y: 370 },
-  { id: "cush1", type: "cushion", x: 590, y: 605 },
-  { id: "cush2", type: "cushion", x: 590, y: 765 },
-  { id: "book1", type: "book",   x: 1190, y: 898 },
-  { id: "book2", type: "book",   x: 1390, y: 898 },
-  { id: "mug4", type: "mug",     x: 100, y: 665 },
+  // ── Workspace: mugs, pens, papers, stickies on desks ──
+  { id: "mug1",  type: "mug",     x: 140, y: 78 },
+  { id: "mug2",  type: "mug",     x: 360, y: 78 },
+  { id: "mug3",  type: "mug",     x: 580, y: 78 },
+  { id: "mug4",  type: "mug",     x: 140, y: 218 },
+  { id: "mug5",  type: "mug",     x: 360, y: 358 },
+  { id: "pen1",  type: "pen",     x: 120, y: 85 },
+  { id: "pen2",  type: "pen",     x: 340, y: 85 },
+  { id: "pen3",  type: "pen",     x: 560, y: 85 },
+  { id: "pen4",  type: "pen",     x: 320, y: 225 },
+  { id: "paper1", type: "paper",  x: 180, y: 230 },
+  { id: "paper2", type: "paper",  x: 400, y: 370 },
+  { id: "paper3", type: "paper",  x: 620, y: 230 },
+  { id: "sticky1", type: "sticky", x: 100, y: 68 },
+  { id: "sticky2", type: "sticky", x: 540, y: 68 },
+  { id: "sticky3", type: "sticky", x: 320, y: 348 },
+  // Standing desk items
+  { id: "mug6",  type: "mug",     x: 720, y: 98 },
+  { id: "pen5",  type: "pen",     x: 710, y: 258 },
+  // ── Meeting Room ──
+  { id: "marker1", type: "marker", x: 900, y: 372 },
+  { id: "marker2", type: "marker", x: 930, y: 372 },
+  { id: "pen6",  type: "pen",     x: 1020, y: 148 },
+  { id: "paper4", type: "paper",  x: 1060, y: 168 },
+  { id: "paper5", type: "paper",  x: 1100, y: 148 },
+  // ── Kitchen ──
+  { id: "mug7",  type: "mug",     x: 80,  y: 558 },
+  { id: "mug8",  type: "mug",     x: 150, y: 558 },
+  { id: "mug9",  type: "mug",     x: 100, y: 668 },
+  { id: "apple1", type: "apple",  x: 50,  y: 558 },
+  { id: "apple2", type: "apple",  x: 180, y: 558 },
+  { id: "donut1", type: "donut",  x: 120, y: 668 },
+  { id: "donut2", type: "donut",  x: 85,  y: 818 },
+  // ── Lounge ──
+  { id: "cush1", type: "cushion", x: 555, y: 608 },
+  { id: "cush2", type: "cushion", x: 625, y: 608 },
+  { id: "cush3", type: "cushion", x: 555, y: 768 },
+  { id: "cush4", type: "cushion", x: 625, y: 768 },
+  { id: "ball1", type: "ball",    x: 820, y: 690 },
+  { id: "ball2", type: "ball",    x: 895, y: 690 },
+  { id: "snack1", type: "snack",  x: 565, y: 685 },
+  { id: "snack2", type: "snack",  x: 595, y: 690 },
+  // ── Rest / Nap Room ──
+  { id: "book1", type: "book",    x: 1170, y: 895 },
+  { id: "book2", type: "book",    x: 1200, y: 895 },
+  { id: "book3", type: "book",    x: 1230, y: 895 },
+  { id: "book4", type: "book",    x: 1370, y: 895 },
+  { id: "book5", type: "book",    x: 1400, y: 895 },
+  { id: "book6", type: "book",    x: 1430, y: 895 },
+  { id: "pillow1", type: "pillow", x: 1200, y: 608 },
+  { id: "pillow2", type: "pillow", x: 1400, y: 608 },
+  { id: "pillow3", type: "pillow", x: 1200, y: 748 },
+  { id: "pillow4", type: "pillow", x: 1400, y: 748 },
 ];
 
 // ═══════════════════════════════════════════
@@ -759,6 +802,44 @@ function drawProp(ctx, prop) {
     case "book":
       ctx.fillStyle = "#c0392b"; ctx.fillRect(x - 6, y - 4, 12, 8);
       ctx.fillStyle = "#e74c3c"; ctx.fillRect(x - 5, y - 3, 10, 6);
+      break;
+    case "pen":
+      ctx.fillStyle = "#4a90d9"; ctx.fillRect(x - 1, y - 5, 2, 7);
+      ctx.fillStyle = "#333"; ctx.fillRect(x - 1, y + 2, 2, 3);
+      ctx.fillStyle = "#ccc"; ctx.fillRect(x - 0.5, y + 4, 1, 2);
+      break;
+    case "sticky":
+      ctx.fillStyle = "#FFEB3B"; ctx.fillRect(x - 5, y - 5, 10, 10);
+      ctx.fillStyle = "#F9A825"; ctx.fillRect(x - 5, y - 5, 10, 2);
+      ctx.fillStyle = "#666"; ctx.fillRect(x - 3, y - 2, 6, 1); ctx.fillRect(x - 3, y + 1, 4, 1);
+      break;
+    case "marker":
+      ctx.fillStyle = "#e74c3c"; ctx.fillRect(x - 1.5, y - 6, 3, 10);
+      ctx.fillStyle = "#c0392b"; ctx.fillRect(x - 1.5, y - 6, 3, 3);
+      ctx.fillStyle = "#333"; ctx.fillRect(x - 1, y + 3, 2, 3);
+      break;
+    case "apple":
+      ctx.fillStyle = "#4caf50"; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#388e3c"; ctx.fillRect(x - 0.5, y - 6, 1, 3);
+      ctx.fillStyle = "#66bb6a"; ctx.fillRect(x + 1, y - 5, 2, 2);
+      break;
+    case "donut":
+      ctx.fillStyle = "#d4a060"; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#f48fb1"; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#d4a060"; ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
+      break;
+    case "ball":
+      ctx.fillStyle = "#ff9800"; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffb74d"; ctx.beginPath(); ctx.arc(x - 1, y - 1, 2, 0, Math.PI * 2); ctx.fill();
+      break;
+    case "snack":
+      ctx.fillStyle = "#f44336"; ctx.fillRect(x - 4, y - 5, 8, 10);
+      ctx.fillStyle = "#fff"; ctx.fillRect(x - 3, y - 4, 6, 2);
+      ctx.fillStyle = "#ffeb3b"; ctx.fillRect(x - 3, y, 6, 2);
+      break;
+    case "pillow":
+      ctx.fillStyle = "#e8e5e0"; roundRect(ctx, x - 8, y - 6, 16, 12, 4); ctx.fill();
+      ctx.fillStyle = "#d5d0c8"; roundRect(ctx, x - 6, y - 4, 12, 8, 3); ctx.fill();
       break;
   }
 }
@@ -1019,65 +1100,178 @@ function drawChatBubble(ctx, x, y, text) {
 }
 
 // ═══════════════════════════════════════════
-//  EMOJI AURA PARTICLE SYSTEM
+//  EMOJI AURA EFFECT SYSTEM (Body-Wrapping)
 // ═══════════════════════════════════════════
-function spawnAuraParticle(emoji, px, py) {
-  const a = Math.random() * Math.PI * 2;
-  const r = 8 + Math.random() * 14;
-  switch (emoji) {
-    case "😀": return { x: px + Math.cos(a)*r, y: py + Math.sin(a)*8, vx: (Math.random()-0.5)*20, vy: -15-Math.random()*20, life: 0.6+Math.random()*0.4, ml: 1, color: "#FFD700", size: 2.5, type: "dot" };
-    case "🔥": return { x: px + (Math.random()-0.5)*16, y: py + 15, vx: (Math.random()-0.5)*12, vy: -35-Math.random()*25, life: 0.4+Math.random()*0.3, ml: 0.7, color: Math.random()>0.5?"#ff6600":"#ffaa00", size: 3, type: "dot" };
-    case "❤️": return { x: px + Math.cos(a)*r, y: py + Math.sin(a)*6, vx: Math.cos(a)*10, vy: -8-Math.random()*8, life: 0.8+Math.random()*0.4, ml: 1.2, color: "#ff4081", size: 1, type: "heart" };
-    case "😢": return { x: px + (Math.random()-0.5)*14, y: py - 10, vx: (Math.random()-0.5)*5, vy: 20+Math.random()*15, life: 0.5+Math.random()*0.3, ml: 0.8, color: Math.random()>0.5?"#42a5f5":"#64b5f6", size: 2.5, type: "drop" };
-    case "⚡": return { x: px + (Math.random()-0.5)*24, y: py + (Math.random()-0.5)*24, vx: (Math.random()-0.5)*60, vy: (Math.random()-0.5)*60, life: 0.08+Math.random()*0.12, ml: 0.2, color: Math.random()>0.3?"#FFEB3B":"#fff", size: 2, type: "dot" };
-  }
-  return null;
+function bodyPoint(px, py) {
+  const r = Math.random();
+  if (r < 0.25) { const a = Math.random()*Math.PI*2; return { x: px+Math.cos(a)*11, y: py-4+Math.sin(a)*11 }; }
+  if (r < 0.5) return { x: px-10-Math.random()*4, y: py+2+Math.random()*14 };
+  if (r < 0.75) return { x: px+10+Math.random()*4, y: py+2+Math.random()*14 };
+  return { x: px+(Math.random()-0.5)*12, y: py+16+Math.random()*12 };
 }
 
 function updateAura(playerId, emoji, px, py, dt) {
   if (!auraParticles.has(playerId)) auraParticles.set(playerId, []);
   const parts = auraParticles.get(playerId);
-  // Spawn
-  const rate = emoji === "⚡" ? 6 : 3;
-  for (let i = 0; i < rate; i++) {
-    const p = spawnAuraParticle(emoji, px, py);
-    if (p) parts.push(p);
-  }
-  // Update
   const dts = dt / 1000;
+  switch (emoji) {
+    case "😀": { // 광기의 미소 — golden energy radiating from body outline
+      for (let i = 0; i < 6; i++) {
+        const bp = bodyPoint(px, py);
+        const a = Math.atan2(bp.y-(py+5), bp.x-px);
+        parts.push({ x:bp.x, y:bp.y, vx:Math.cos(a)*(40+Math.random()*50), vy:Math.sin(a)*(40+Math.random()*50), life:0.25+Math.random()*0.35, ml:0.6, color:Math.random()>0.3?"#FFD700":"#FFF176", size:1.5+Math.random()*2.5, t:"spark", gy:0 });
+      }
+      if (Math.random()<0.18) {
+        parts.push({ x:px, y:py+5, vx:0, vy:0, life:0.35, ml:0.35, color:"#FFD700", size:0, t:"ring", gy:0 });
+      }
+      break;
+    }
+    case "🔥": { // 불의 화신 — engulfing fire across entire body
+      const fc = ["#fff176","#ffee58","#ffca28","#ffa726","#ff7043","#f44336","#d32f2f"];
+      for (let i = 0; i < 10; i++) {
+        const bp = bodyPoint(px, py);
+        parts.push({ x:bp.x, y:bp.y, vx:(Math.random()-0.5)*18+(bp.x-px)*0.8, vy:-45-Math.random()*45, life:0.25+Math.random()*0.4, ml:0.65, color:fc[Math.floor(Math.random()*fc.length)], size:2.5+Math.random()*4, t:"flame", gy:-35 });
+      }
+      for (let i = 0; i < 5; i++) {
+        const ox = (Math.random()-0.5)*16;
+        parts.push({ x:px+ox, y:py+22+Math.random()*6, vx:ox*1.5, vy:-65-Math.random()*35, life:0.2+Math.random()*0.3, ml:0.5, color:Math.random()>0.5?"#ffca28":"#fff176", size:3+Math.random()*3, t:"flame", gy:-40 });
+      }
+      break;
+    }
+    case "❤️": { // 팜므파탈 — hearts floating from body outline
+      for (let i = 0; i < 2; i++) {
+        const bp = bodyPoint(px, py);
+        const a = Math.atan2(bp.y-(py+5), bp.x-px);
+        parts.push({ x:bp.x, y:bp.y, vx:Math.cos(a)*8+(Math.random()-0.5)*12, vy:-18-Math.random()*22, life:0.8+Math.random()*0.8, ml:1.6, color:Math.random()>0.4?"#ff4081":"#f50057", size:6+Math.random()*8, t:"heart", gy:0 });
+      }
+      if (Math.random()<0.25) {
+        const a = Math.random()*Math.PI*2;
+        parts.push({ x:px+Math.cos(a)*24, y:py+5+Math.sin(a)*15, vx:0, vy:0, life:2+Math.random(), ml:3, color:"#ff80ab", size:10+Math.random()*6, t:"orbit", a:a, r:22+Math.random()*10, cx:px, cy:py+5, spd:1.5+Math.random(), gy:0 });
+      }
+      break;
+    }
+    case "😢": { // 분수 눈물 — fountain tears from both eyes
+      for (let i = 0; i < 3; i++) {
+        parts.push({ x:px-4, y:py-4, vx:-22-Math.random()*18, vy:-22-Math.random()*15, life:0.5+Math.random()*0.3, ml:0.8, color:Math.random()>0.5?"#42a5f5":"#90caf9", size:2+Math.random()*1.5, t:"tear", gy:85 });
+      }
+      for (let i = 0; i < 3; i++) {
+        parts.push({ x:px+4, y:py-4, vx:22+Math.random()*18, vy:-22-Math.random()*15, life:0.5+Math.random()*0.3, ml:0.8, color:Math.random()>0.5?"#42a5f5":"#64b5f6", size:2+Math.random()*1.5, t:"tear", gy:85 });
+      }
+      break;
+    }
+    case "⚡": { // 초사이어인 — lightning bolts + sparks on body
+      for (let i = 0; i < 5; i++) {
+        const bp = bodyPoint(px, py);
+        parts.push({ x:bp.x, y:bp.y, vx:(Math.random()-0.5)*90, vy:(Math.random()-0.5)*90, life:0.04+Math.random()*0.08, ml:0.12, color:Math.random()>0.4?"#FFEB3B":"#fff", size:1+Math.random()*2.5, t:"spark", gy:0 });
+      }
+      if (Math.random()<0.4) {
+        parts.push({ x:px+(Math.random()-0.5)*14, y:py-12, vx:(Math.random()-0.5)*8, vy:-70-Math.random()*50, life:0.12+Math.random()*0.1, ml:0.22, color:"#FFD600", size:1.5, t:"streak", gy:0 });
+      }
+      break;
+    }
+  }
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
     p.life -= dts;
     if (p.life <= 0) { parts.splice(i, 1); continue; }
-    p.x += p.vx * dts;
-    p.y += p.vy * dts;
+    if (p.t === "orbit") { p.a += p.spd*dts; p.cx = px; p.cy = py+5; p.x = p.cx+Math.cos(p.a)*p.r; p.y = p.cy+Math.sin(p.a)*(p.r*0.6); }
+    else if (p.t === "ring") { p.size += 65*dts; }
+    else { p.x += p.vx*dts; p.y += p.vy*dts; if (p.gy) p.vy += p.gy*dts; }
   }
 }
 
-function drawAura(ctx, playerId) {
+function drawAura(ctx, playerId, emoji, px, py) {
   const parts = auraParticles.get(playerId);
-  if (!parts) return;
+  if (!parts || parts.length === 0) return;
+  ctx.save();
+  // Base glow per type
+  if (emoji === "😀") {
+    const g = ctx.createRadialGradient(px,py+5,5,px,py+5,32);
+    g.addColorStop(0,"rgba(255,215,0,0.2)"); g.addColorStop(1,"rgba(255,215,0,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py+5,32,0,Math.PI*2); ctx.fill();
+  } else if (emoji === "🔥") {
+    const g = ctx.createRadialGradient(px,py+5,5,px,py-5,42);
+    g.addColorStop(0,"rgba(255,100,0,0.28)"); g.addColorStop(0.5,"rgba(255,60,0,0.14)"); g.addColorStop(1,"rgba(255,0,0,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py,42,0,Math.PI*2); ctx.fill();
+  } else if (emoji === "❤️") {
+    const g = ctx.createRadialGradient(px,py+5,5,px,py+5,36);
+    g.addColorStop(0,"rgba(255,64,129,0.2)"); g.addColorStop(1,"rgba(255,64,129,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py+5,36,0,Math.PI*2); ctx.fill();
+  } else if (emoji === "😢") {
+    ctx.globalAlpha = 0.3; ctx.strokeStyle = "#64b5f6"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(px-4,py-2); ctx.quadraticCurveTo(px-8,py+4,px-6,py+10); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px+4,py-2); ctx.quadraticCurveTo(px+8,py+4,px+6,py+10); ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else if (emoji === "⚡") {
+    const fl = 0.15+Math.random()*0.12;
+    const g = ctx.createRadialGradient(px,py+5,3,px,py+5,38);
+    g.addColorStop(0,`rgba(255,235,59,${fl+0.15})`); g.addColorStop(0.5,`rgba(255,215,0,${fl})`); g.addColorStop(1,"rgba(255,215,0,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py+5,38,0,Math.PI*2); ctx.fill();
+    drawBolts(ctx, px, py);
+  }
+  // Draw particles
   for (const p of parts) {
     const alpha = Math.max(0, p.life / p.ml);
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = p.color;
-    if (p.type === "heart") {
-      ctx.font = `${8 + p.size * 3}px serif`;
-      ctx.textAlign = "center";
-      ctx.fillText("❤", p.x, p.y);
-    } else if (p.type === "drop") {
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y - p.size);
-      ctx.quadraticCurveTo(p.x + p.size, p.y, p.x, p.y + p.size);
-      ctx.quadraticCurveTo(p.x - p.size, p.y, p.x, p.y - p.size);
-      ctx.fill();
-    } else {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
-      ctx.fill();
+    switch (p.t) {
+      case "spark": {
+        ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.size*alpha,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(p.x,p.y,p.size*alpha*0.4,0,Math.PI*2); ctx.fill();
+        break;
+      }
+      case "ring": {
+        ctx.strokeStyle = p.color; ctx.lineWidth = 2.5*alpha; ctx.globalAlpha = alpha*0.4;
+        ctx.beginPath(); ctx.arc(px,py+5,p.size,0,Math.PI*2); ctx.stroke();
+        break;
+      }
+      case "flame": {
+        const s = p.size*(0.3+alpha*0.7);
+        ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x,p.y,s,0,Math.PI*2); ctx.fill();
+        break;
+      }
+      case "heart": case "orbit": {
+        ctx.font = `${Math.round(p.size*Math.max(0.3,alpha))}px serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+        ctx.fillStyle = p.color; ctx.fillText("❤",p.x,p.y);
+        break;
+      }
+      case "tear": {
+        ctx.fillStyle = p.color; const s = p.size;
+        ctx.beginPath(); ctx.moveTo(p.x,p.y-s*1.5);
+        ctx.quadraticCurveTo(p.x+s,p.y,p.x,p.y+s);
+        ctx.quadraticCurveTo(p.x-s,p.y,p.x,p.y-s*1.5); ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.beginPath(); ctx.arc(p.x,p.y-s*0.3,s*0.4,0,Math.PI*2); ctx.fill();
+        break;
+      }
+      case "streak": {
+        ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.globalAlpha = alpha*0.8;
+        ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+p.vx*0.03,p.y+p.vy*0.03); ctx.stroke();
+        break;
+      }
     }
   }
   ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawBolts(ctx, px, py) {
+  const n = 2+Math.floor(Math.random()*3);
+  for (let b = 0; b < n; b++) {
+    const p1 = bodyPoint(px,py), p2 = bodyPoint(px,py);
+    const segs = 3+Math.floor(Math.random()*4);
+    const pts = [];
+    for (let i = 0; i <= segs; i++) {
+      const t = i/segs;
+      pts.push({ x:p1.x+(p2.x-p1.x)*t+(i>0&&i<segs?(Math.random()-0.5)*16:0), y:p1.y+(p2.y-p1.y)*t+(i>0&&i<segs?(Math.random()-0.5)*16:0) });
+    }
+    ctx.strokeStyle = "rgba(255,235,59,0.5)"; ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+    ctx.stroke();
+    ctx.strokeStyle = Math.random()>0.5?"#fff":"#FFEB3B"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+    ctx.stroke();
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -1172,8 +1366,8 @@ function joinRoom() {
     }, THROW_FLY_DURATION);
   });
 
-  socket.on("throw-prop", ({ id, propType, fromX, fromY, toX, toY }) => {
-    flyingProps.push({ propType, fromX, fromY, toX, toY, startTime: Date.now(), throwerId: id });
+  socket.on("throw-prop", ({ id, propId, propType, fromX, fromY, toX, toY }) => {
+    flyingProps.push({ propId, propType, fromX, fromY, toX, toY, startTime: Date.now(), throwerId: id });
     playThrowSound();
   });
 
@@ -1291,7 +1485,8 @@ function throwPropItem(prop) {
     const dv = dirV[localPlayer.direction] || {x:0,y:1};
     targetX = localPlayer.x + dv.x * 200; targetY = localPlayer.y + dv.y * 200;
   }
-  socket.emit("throw-prop", { propType: prop.type, fromX: localPlayer.x, fromY: localPlayer.y, toX: targetX, toY: targetY });
+  // Fly from prop position (not player), include propId for position update
+  socket.emit("throw-prop", { propId: prop.id, propType: prop.type, fromX: prop.x, fromY: prop.y, toX: targetX, toY: targetY });
 }
 
 function drawFlyingPlayer(ctx, obj, now) {
@@ -1523,10 +1718,15 @@ function update(dt) {
     }
   }
 
-  // Check prop hits on landing
+  // Check prop hits on landing + update prop position
   for (let i = flyingProps.length - 1; i >= 0; i--) {
     const fp = flyingProps[i];
     if (now - fp.startTime >= PROP_FLY_DURATION) {
+      // Move prop to landing position
+      if (fp.propId) {
+        const prop = THROWABLE_PROPS.find(p => p.id === fp.propId);
+        if (prop) { prop.x = fp.toX; prop.y = fp.toY; }
+      }
       // Check hit on any player near landing
       const hitCheck = (px, py, pid) => {
         const dx = px - fp.toX, dy = py - fp.toY;
@@ -1648,7 +1848,7 @@ function render() {
       }
 
       // Aura effect
-      drawAura(ctx, d.id);
+      if (d.data.activeEmoji) drawAura(ctx, d.id, d.data.activeEmoji, d.data.x, d.data.y);
 
       // Speech bubble
       const bubble = chatBubbles.get(d.id);

@@ -107,10 +107,11 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("throw-prop", ({ propType, fromX, fromY, toX, toY }) => {
+  socket.on("throw-prop", ({ propId, propType, fromX, fromY, toX, toY }) => {
     if (!currentRoom || !currentPlayer) return;
     io.to(currentRoom).emit("throw-prop", {
       id: socket.id,
+      propId: String(propId || ""),
       propType: String(propType || "mug"),
       fromX: Number(fromX) || 0,
       fromY: Number(fromY) || 0,
