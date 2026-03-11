@@ -107,7 +107,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("throw-prop", ({ propId, propType, fromX, fromY, toX, toY, furnW, furnH }) => {
+  socket.on("throw-prop", ({ propId, propType, fromX, fromY, toX, toY, furnW, furnH, furnIdx }) => {
     if (!currentRoom || !currentPlayer) return;
     io.to(currentRoom).emit("throw-prop", {
       id: socket.id,
@@ -119,6 +119,7 @@ io.on("connection", (socket) => {
       toY: Number(toY) || 0,
       furnW: Number(furnW) || 40,
       furnH: Number(furnH) || 30,
+      furnIdx: furnIdx != null ? Number(furnIdx) : -1,
     });
   });
 

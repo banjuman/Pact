@@ -510,7 +510,7 @@ const FURNITURE = [
   { type: "rug", x: 1340, y: 560, w: 180, h: 120, noCollision: true },
 ];
 
-// All furniture is throwable — originals stay in place, copies fly
+// All furniture is throwable — originals fly at full size and land at new position
 const FURN_NO_THROW = new Set(["rug"]); // skip rugs
 
 // ═══════════════════════════════════════════
@@ -887,6 +887,7 @@ var hoverTarget = null; // { type, id, data }
 var flyingPlayers = [];
 var stunnedPlayers = new Map();
 var flyingProps = [];
+var flyingFurnSet = new Set(); // furniture indices currently in flight
 var wobblePlayers = new Map();
 var auraParticles = new Map();
 
@@ -1276,8 +1277,10 @@ function joinRoom() {
     }, THROW_FLY_DURATION);
   });
 
-  socket.on("throw-prop", ({ id, propId, propType, fromX, fromY, toX, toY, furnW, furnH }) => {
-    flyingProps.push({ propId, propType, fromX, fromY, toX, toY, startTime: Date.now(), throwerId: id, furnW: furnW || 40, furnH: furnH || 30 });
+  socket.on("throw-prop", ({ id, propId, propType, fromX, fromY, toX, toY, furnW, furnH, furnIdx }) => {
+    const fi = (furnIdx != null && furnIdx >= 0) ? furnIdx : -1;
+    if (fi >= 0) flyingFurnSet.add(fi);
+    flyingProps.push({ propId, propType, fromX, fromY, toX, toY, startTime: Date.now(), throwerId: id, furnW: furnW || 40, furnH: furnH || 30, furnIdx: fi });
     playThrowSound();
   });
 
@@ -1349,15 +1352,16 @@ function getNearbyThrowables() {
     if (dist < THROW_RANGE && !isPlayerFlying(id) && !stunnedPlayers.has(id))
       result.push({ type: "player", id, data: p, dist });
   }
-  // All furniture is throwable
+  // All furniture is throwable (skip rugs and currently flying items)
   for (let fi = 0; fi < FURNITURE.length; fi++) {
     const f = FURNITURE[fi];
     if (FURN_NO_THROW.has(f.type)) continue;
+    if (flyingFurnSet.has(fi)) continue;
     const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
     const dx = cx - localPlayer.x, dy = cy - localPlayer.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
     if (dist < INTERACT_RANGE + 30)
-      result.push({ type: "furniture", id: "f" + fi, data: { x: cx, y: cy, fx: f.x, fy: f.y, w: f.w, h: f.h, ftype: f.type }, dist });
+      result.push({ type: "furniture", id: "f" + fi, data: { x: cx, y: cy, fx: f.x, fy: f.y, w: f.w, h: f.h, ftype: f.type, idx: fi }, dist });
   }
   return result;
 }
@@ -1394,7 +1398,7 @@ function throwFurniture(fdata) {
   let targetY = fdata.y + (dy / dist) * throwDist;
   targetX = Math.max(30, Math.min(MAP.width - 30, targetX));
   targetY = Math.max(30, Math.min(MAP.height - 50, targetY));
-  socket.emit("throw-prop", { propId: null, propType: fdata.ftype, fromX: fdata.x, fromY: fdata.y, toX: targetX, toY: targetY, furnW: fdata.w, furnH: fdata.h });
+  socket.emit("throw-prop", { propId: null, propType: fdata.ftype, fromX: fdata.x, fromY: fdata.y, toX: targetX, toY: targetY, furnW: fdata.w, furnH: fdata.h, furnIdx: fdata.idx });
 }
 
 function drawFlyingPlayer(ctx, obj, now) {
@@ -1417,21 +1421,23 @@ function drawFlyingPropItem(ctx, obj, now) {
   const t = Math.min(1, (now - obj.startTime) / PROP_FLY_DURATION);
   const px = obj.fromX + (obj.toX - obj.fromX) * t;
   const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 80;
+  const fw = obj.furnW || 40, fh = obj.furnH || 30;
   ctx.save();
   ctx.translate(px, py);
-  ctx.rotate(t * Math.PI * 3);
-  // Draw scaled-down furniture copy
-  const fw = obj.furnW || 40, fh = obj.furnH || 30;
+  // Slow rotation for large items, faster for small
   const maxDim = Math.max(fw, fh);
-  const scale = Math.min(0.8, 50 / maxDim);
-  ctx.scale(scale, scale);
+  const rotSpeed = maxDim > 80 ? 1.5 : 3;
+  ctx.rotate(t * Math.PI * rotSpeed);
+  // Draw at FULL SIZE — the original furniture flies
   drawFurniture(ctx, { type: obj.propType, x: -fw/2, y: -fh/2, w: fw, h: fh });
   ctx.restore();
-  // Ground shadow
+  // Ground shadow scaled to furniture size
   const groundY = obj.fromY + (obj.toY - obj.fromY) * t;
   const ss = 1 - Math.sin(t * Math.PI) * 0.5;
+  const shadowW = Math.max(16, fw * 0.5) * ss;
+  const shadowH = Math.max(5, fh * 0.15) * ss;
   ctx.fillStyle = "rgba(0,0,0,0.12)";
-  ctx.beginPath(); ctx.ellipse(px, groundY + 5, 12*ss, 4*ss, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(px, groundY + 5, shadowW, shadowH, 0, 0, Math.PI*2); ctx.fill();
 }
 
 function getStunScale(playerId) {
@@ -1643,10 +1649,23 @@ function update(dt) {
     }
   }
 
-  // Check furniture hits on landing (originals stay in place)
+  // Check furniture hits on landing — move original to new position
+  let needNavRebuild = false;
   for (let i = flyingProps.length - 1; i >= 0; i--) {
     const fp = flyingProps[i];
     if (now - fp.startTime >= PROP_FLY_DURATION) {
+      // Move the original furniture to landing position
+      const fi = fp.furnIdx;
+      if (fi >= 0 && fi < FURNITURE.length) {
+        const fw = FURNITURE[fi].w, fh = FURNITURE[fi].h;
+        FURNITURE[fi].x = Math.round(fp.toX - fw / 2);
+        FURNITURE[fi].y = Math.round(fp.toY - fh / 2);
+        // Clamp to map bounds
+        FURNITURE[fi].x = Math.max(14, Math.min(MAP.width - 14 - fw, FURNITURE[fi].x));
+        FURNITURE[fi].y = Math.max(14, Math.min(MAP.height - 14 - fh, FURNITURE[fi].y));
+        flyingFurnSet.delete(fi);
+        needNavRebuild = true;
+      }
       // Check hit on any player near landing
       const hitCheck = (px, py, pid) => {
         const dx = px - fp.toX, dy = py - fp.toY;
@@ -1658,9 +1677,11 @@ function update(dt) {
       if (localPlayer && socket && hitCheck(localPlayer.x, localPlayer.y, socket.id)) {
         wobblePlayers.set(socket.id, { startTime: now }); playHitSound();
       }
+      playLandSound();
       flyingProps.splice(i, 1);
     }
   }
+  if (needNavRebuild) buildNavGrid();
 
   // Update throw button state
   const nearby = getNearbyThrowables();
@@ -1700,7 +1721,7 @@ function render() {
   ctx.translate(Math.floor(camX), Math.floor(camY));
 
   drawFloor(ctx);
-  for (const f of FURNITURE) { if (f.type === "rug") drawFurniture(ctx, f); }
+  for (let fi = 0; fi < FURNITURE.length; fi++) { const f = FURNITURE[fi]; if (f.type === "rug" && !flyingFurnSet.has(fi)) drawFurniture(ctx, f); }
   drawWalls(ctx);
 
   // Click target indicator
@@ -1721,7 +1742,7 @@ function render() {
 
   // Y-sorted drawables
   const drawables = [];
-  for (const f of FURNITURE) { if (f.type === "rug") continue; drawables.push({ type: "f", data: f, sortY: f.y + f.h }); }
+  for (let fi = 0; fi < FURNITURE.length; fi++) { const f = FURNITURE[fi]; if (f.type === "rug" || flyingFurnSet.has(fi)) continue; drawables.push({ type: "f", data: f, sortY: f.y + f.h }); }
   drawables.push({ type: "p", data: localPlayer, isSelf: true, id: socket ? socket.id : "local", sortY: localPlayer.y + 28 });
   for (const [id, p] of remotePlayers) drawables.push({ type: "p", data: p, isSelf: false, id, sortY: p.y + 28 });
   drawables.sort((a, b) => a.sortY - b.sortY);
