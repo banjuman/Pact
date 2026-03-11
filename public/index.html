@@ -510,61 +510,44 @@ const FURNITURE = [
   { type: "rug", x: 1340, y: 560, w: 180, h: 120, noCollision: true },
 ];
 
-// Throwable props (all small items across the office)
+// Throwable props (big visible items: monitors, chairs, beanbags, etc.)
 const THROWABLE_PROPS = [
-  // ── Workspace: mugs, pens, papers, stickies on desks ──
-  { id: "mug1",  type: "mug",     x: 140, y: 78 },
-  { id: "mug2",  type: "mug",     x: 360, y: 78 },
-  { id: "mug3",  type: "mug",     x: 580, y: 78 },
-  { id: "mug4",  type: "mug",     x: 140, y: 218 },
-  { id: "mug5",  type: "mug",     x: 360, y: 358 },
-  { id: "pen1",  type: "pen",     x: 120, y: 85 },
-  { id: "pen2",  type: "pen",     x: 340, y: 85 },
-  { id: "pen3",  type: "pen",     x: 560, y: 85 },
-  { id: "pen4",  type: "pen",     x: 320, y: 225 },
-  { id: "paper1", type: "paper",  x: 180, y: 230 },
-  { id: "paper2", type: "paper",  x: 400, y: 370 },
-  { id: "paper3", type: "paper",  x: 620, y: 230 },
-  { id: "sticky1", type: "sticky", x: 100, y: 68 },
-  { id: "sticky2", type: "sticky", x: 540, y: 68 },
-  { id: "sticky3", type: "sticky", x: 320, y: 348 },
-  // Standing desk items
-  { id: "mug6",  type: "mug",     x: 720, y: 98 },
-  { id: "pen5",  type: "pen",     x: 710, y: 258 },
+  // ── Workspace: monitors on desks & loose chairs ──
+  { id: "mon1", type: "monitor", x: 110, y: 75 },
+  { id: "mon2", type: "monitor", x: 330, y: 75 },
+  { id: "mon3", type: "monitor", x: 550, y: 75 },
+  { id: "mon4", type: "monitor", x: 110, y: 215 },
+  { id: "mon5", type: "monitor", x: 330, y: 355 },
+  { id: "mon6", type: "monitor", x: 725, y: 95 },
+  { id: "chr1", type: "chair", x: 200, y: 148 },
+  { id: "chr2", type: "chair", x: 420, y: 288 },
+  { id: "chr3", type: "chair", x: 640, y: 148 },
   // ── Meeting Room ──
-  { id: "marker1", type: "marker", x: 900, y: 372 },
-  { id: "marker2", type: "marker", x: 930, y: 372 },
-  { id: "pen6",  type: "pen",     x: 1020, y: 148 },
-  { id: "paper4", type: "paper",  x: 1060, y: 168 },
-  { id: "paper5", type: "paper",  x: 1100, y: 148 },
-  // ── Kitchen ──
-  { id: "mug7",  type: "mug",     x: 80,  y: 558 },
-  { id: "mug8",  type: "mug",     x: 150, y: 558 },
-  { id: "mug9",  type: "mug",     x: 100, y: 668 },
-  { id: "apple1", type: "apple",  x: 50,  y: 558 },
-  { id: "apple2", type: "apple",  x: 180, y: 558 },
-  { id: "donut1", type: "donut",  x: 120, y: 668 },
-  { id: "donut2", type: "donut",  x: 85,  y: 818 },
-  // ── Lounge ──
-  { id: "cush1", type: "cushion", x: 555, y: 608 },
-  { id: "cush2", type: "cushion", x: 625, y: 608 },
-  { id: "cush3", type: "cushion", x: 555, y: 768 },
-  { id: "cush4", type: "cushion", x: 625, y: 768 },
-  { id: "ball1", type: "ball",    x: 820, y: 690 },
-  { id: "ball2", type: "ball",    x: 895, y: 690 },
-  { id: "snack1", type: "snack",  x: 565, y: 685 },
-  { id: "snack2", type: "snack",  x: 595, y: 690 },
-  // ── Rest / Nap Room ──
-  { id: "book1", type: "book",    x: 1170, y: 895 },
-  { id: "book2", type: "book",    x: 1200, y: 895 },
-  { id: "book3", type: "book",    x: 1230, y: 895 },
-  { id: "book4", type: "book",    x: 1370, y: 895 },
-  { id: "book5", type: "book",    x: 1400, y: 895 },
-  { id: "book6", type: "book",    x: 1430, y: 895 },
-  { id: "pillow1", type: "pillow", x: 1200, y: 608 },
-  { id: "pillow2", type: "pillow", x: 1400, y: 608 },
-  { id: "pillow3", type: "pillow", x: 1200, y: 748 },
-  { id: "pillow4", type: "pillow", x: 1400, y: 748 },
+  { id: "chr4", type: "chair", x: 955, y: 170 },
+  { id: "chr5", type: "chair", x: 1145, y: 230 },
+  // ── Kitchen: stools & mugs ──
+  { id: "stl1", type: "stool", x: 170, y: 718 },
+  { id: "stl2", type: "stool", x: 205, y: 718 },
+  { id: "stl3", type: "stool", x: 170, y: 868 },
+  { id: "stl4", type: "stool", x: 205, y: 868 },
+  { id: "mug1", type: "mug",   x: 80,  y: 558 },
+  { id: "mug2", type: "mug",   x: 150, y: 558 },
+  // ── Lounge: beanbags, cushions, ball ──
+  { id: "bn1",  type: "beanbag", x: 780, y: 800 },
+  { id: "bn2",  type: "beanbag", x: 850, y: 840 },
+  { id: "bn3",  type: "beanbag", x: 920, y: 800 },
+  { id: "csh1", type: "cushion", x: 560, y: 610 },
+  { id: "csh2", type: "cushion", x: 630, y: 610 },
+  { id: "csh3", type: "cushion", x: 560, y: 770 },
+  { id: "csh4", type: "cushion", x: 630, y: 770 },
+  { id: "ball1", type: "ball",  x: 830, y: 700 },
+  // ── Rest / Nap Room: pillows & books ──
+  { id: "pil1", type: "pillow", x: 1210, y: 615 },
+  { id: "pil2", type: "pillow", x: 1410, y: 615 },
+  { id: "pil3", type: "pillow", x: 1210, y: 755 },
+  { id: "pil4", type: "pillow", x: 1410, y: 755 },
+  { id: "book1", type: "book",  x: 1185, y: 895 },
+  { id: "book2", type: "book",  x: 1385, y: 895 },
 ];
 
 // ═══════════════════════════════════════════
@@ -785,61 +768,46 @@ function drawFurniture(ctx, item) {
 function drawProp(ctx, prop) {
   const { type, x, y } = prop;
   switch (type) {
-    case "mug":
-      ctx.fillStyle = "#f5f0e8"; ctx.fillRect(x - 4, y - 6, 8, 8);
-      ctx.fillStyle = "#d4c8b8"; ctx.fillRect(x + 3, y - 4, 3, 4);
-      ctx.fillStyle = "#6d4c1a"; ctx.fillRect(x - 3, y - 5, 6, 2);
+    case "monitor":
+      ctx.fillStyle = "#222"; ctx.fillRect(x - 14, y - 11, 28, 20);
+      ctx.fillStyle = "#3a7bd5"; ctx.fillRect(x - 12, y - 9, 24, 16);
+      ctx.fillStyle = "#444"; ctx.fillRect(x - 2, y + 9, 4, 3);
+      ctx.fillRect(x - 8, y + 11, 16, 2);
       break;
-    case "paper":
-      ctx.fillStyle = "#f0ede5";
-      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "#ccc"; ctx.lineWidth = 0.5; ctx.stroke();
+    case "chair":
+      ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#444"; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+      break;
+    case "stool":
+      ctx.fillStyle = "#666"; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#777"; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
+      break;
+    case "beanbag":
+      ctx.fillStyle = "#e8a060"; ctx.beginPath(); ctx.ellipse(x, y, 18, 14, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(0,0,0,0.08)"; ctx.beginPath(); ctx.ellipse(x + 2, y + 2, 12, 9, 0, 0, Math.PI * 2); ctx.fill();
+      break;
+    case "mug":
+      ctx.fillStyle = "#f5f0e8"; ctx.fillRect(x - 5, y - 7, 10, 10);
+      ctx.fillStyle = "#d4c8b8"; ctx.fillRect(x + 4, y - 5, 4, 5);
+      ctx.fillStyle = "#6d4c1a"; ctx.fillRect(x - 4, y - 6, 8, 3);
       break;
     case "cushion":
-      ctx.fillStyle = "#e8a060"; roundRect(ctx, x - 7, y - 7, 14, 14, 3); ctx.fill();
-      ctx.fillStyle = "#d08030"; roundRect(ctx, x - 5, y - 5, 10, 10, 2); ctx.fill();
-      break;
-    case "book":
-      ctx.fillStyle = "#c0392b"; ctx.fillRect(x - 6, y - 4, 12, 8);
-      ctx.fillStyle = "#e74c3c"; ctx.fillRect(x - 5, y - 3, 10, 6);
-      break;
-    case "pen":
-      ctx.fillStyle = "#4a90d9"; ctx.fillRect(x - 1, y - 5, 2, 7);
-      ctx.fillStyle = "#333"; ctx.fillRect(x - 1, y + 2, 2, 3);
-      ctx.fillStyle = "#ccc"; ctx.fillRect(x - 0.5, y + 4, 1, 2);
-      break;
-    case "sticky":
-      ctx.fillStyle = "#FFEB3B"; ctx.fillRect(x - 5, y - 5, 10, 10);
-      ctx.fillStyle = "#F9A825"; ctx.fillRect(x - 5, y - 5, 10, 2);
-      ctx.fillStyle = "#666"; ctx.fillRect(x - 3, y - 2, 6, 1); ctx.fillRect(x - 3, y + 1, 4, 1);
-      break;
-    case "marker":
-      ctx.fillStyle = "#e74c3c"; ctx.fillRect(x - 1.5, y - 6, 3, 10);
-      ctx.fillStyle = "#c0392b"; ctx.fillRect(x - 1.5, y - 6, 3, 3);
-      ctx.fillStyle = "#333"; ctx.fillRect(x - 1, y + 3, 2, 3);
-      break;
-    case "apple":
-      ctx.fillStyle = "#4caf50"; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#388e3c"; ctx.fillRect(x - 0.5, y - 6, 1, 3);
-      ctx.fillStyle = "#66bb6a"; ctx.fillRect(x + 1, y - 5, 2, 2);
-      break;
-    case "donut":
-      ctx.fillStyle = "#d4a060"; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#f48fb1"; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#d4a060"; ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#e8a060"; roundRect(ctx, x - 9, y - 9, 18, 18, 4); ctx.fill();
+      ctx.fillStyle = "#d08030"; roundRect(ctx, x - 7, y - 7, 14, 14, 3); ctx.fill();
       break;
     case "ball":
-      ctx.fillStyle = "#ff9800"; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#ffb74d"; ctx.beginPath(); ctx.arc(x - 1, y - 1, 2, 0, Math.PI * 2); ctx.fill();
-      break;
-    case "snack":
-      ctx.fillStyle = "#f44336"; ctx.fillRect(x - 4, y - 5, 8, 10);
-      ctx.fillStyle = "#fff"; ctx.fillRect(x - 3, y - 4, 6, 2);
-      ctx.fillStyle = "#ffeb3b"; ctx.fillRect(x - 3, y, 6, 2);
+      ctx.fillStyle = "#ff9800"; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffb74d"; ctx.beginPath(); ctx.arc(x - 1, y - 1, 3, 0, Math.PI * 2); ctx.fill();
       break;
     case "pillow":
-      ctx.fillStyle = "#e8e5e0"; roundRect(ctx, x - 8, y - 6, 16, 12, 4); ctx.fill();
-      ctx.fillStyle = "#d5d0c8"; roundRect(ctx, x - 6, y - 4, 12, 8, 3); ctx.fill();
+      ctx.fillStyle = "#e8e5e0"; roundRect(ctx, x - 10, y - 7, 20, 14, 5); ctx.fill();
+      ctx.fillStyle = "#d5d0c8"; roundRect(ctx, x - 8, y - 5, 16, 10, 4); ctx.fill();
+      break;
+    case "book":
+      ctx.fillStyle = "#c0392b"; ctx.fillRect(x - 8, y - 5, 16, 10);
+      ctx.fillStyle = "#e74c3c"; ctx.fillRect(x - 7, y - 4, 14, 8);
+      ctx.fillStyle = "#fff"; ctx.fillRect(x - 5, y - 2, 10, 1);
       break;
   }
 }
@@ -1009,7 +977,7 @@ const POSITION_SEND_INTERVAL = 50;
 const BUBBLE_DURATION = 5000;
 const THROW_FLY_DURATION = 500;
 const STUN_DURATION = 1200;
-const PROP_FLY_DURATION = 400;
+const PROP_FLY_DURATION = 600;
 const WOBBLE_DURATION = 500;
 const THROW_RANGE = 80;
 const INTERACT_RANGE = 80;
@@ -1115,38 +1083,38 @@ function updateAura(playerId, emoji, px, py, dt) {
   const parts = auraParticles.get(playerId);
   const dts = dt / 1000;
   switch (emoji) {
-    case "😀": { // 광기의 미소 — golden energy radiating from body outline
-      for (let i = 0; i < 6; i++) {
-        const bp = bodyPoint(px, py);
-        const a = Math.atan2(bp.y-(py+5), bp.x-px);
-        parts.push({ x:bp.x, y:bp.y, vx:Math.cos(a)*(40+Math.random()*50), vy:Math.sin(a)*(40+Math.random()*50), life:0.25+Math.random()*0.35, ml:0.6, color:Math.random()>0.3?"#FFD700":"#FFF176", size:1.5+Math.random()*2.5, t:"spark", gy:0 });
-      }
-      if (Math.random()<0.18) {
-        parts.push({ x:px, y:py+5, vx:0, vy:0, life:0.35, ml:0.35, color:"#FFD700", size:0, t:"ring", gy:0 });
-      }
-      break;
-    }
-    case "🔥": { // 불의 화신 — engulfing fire across entire body
-      const fc = ["#fff176","#ffee58","#ffca28","#ffa726","#ff7043","#f44336","#d32f2f"];
-      for (let i = 0; i < 10; i++) {
-        const bp = bodyPoint(px, py);
-        parts.push({ x:bp.x, y:bp.y, vx:(Math.random()-0.5)*18+(bp.x-px)*0.8, vy:-45-Math.random()*45, life:0.25+Math.random()*0.4, ml:0.65, color:fc[Math.floor(Math.random()*fc.length)], size:2.5+Math.random()*4, t:"flame", gy:-35 });
-      }
-      for (let i = 0; i < 5; i++) {
-        const ox = (Math.random()-0.5)*16;
-        parts.push({ x:px+ox, y:py+22+Math.random()*6, vx:ox*1.5, vy:-65-Math.random()*35, life:0.2+Math.random()*0.3, ml:0.5, color:Math.random()>0.5?"#ffca28":"#fff176", size:3+Math.random()*3, t:"flame", gy:-40 });
-      }
-      break;
-    }
-    case "❤️": { // 팜므파탈 — hearts floating from body outline
+    case "😀": { // 광기의 미소 — subtle golden sparkles
       for (let i = 0; i < 2; i++) {
         const bp = bodyPoint(px, py);
         const a = Math.atan2(bp.y-(py+5), bp.x-px);
-        parts.push({ x:bp.x, y:bp.y, vx:Math.cos(a)*8+(Math.random()-0.5)*12, vy:-18-Math.random()*22, life:0.8+Math.random()*0.8, ml:1.6, color:Math.random()>0.4?"#ff4081":"#f50057", size:6+Math.random()*8, t:"heart", gy:0 });
+        parts.push({ x:bp.x, y:bp.y, vx:Math.cos(a)*(25+Math.random()*30), vy:Math.sin(a)*(25+Math.random()*30), life:0.25+Math.random()*0.3, ml:0.55, color:Math.random()>0.3?"#FFD700":"#FFF176", size:1+Math.random()*1.5, t:"spark", gy:0 });
       }
-      if (Math.random()<0.25) {
+      if (Math.random()<0.06) {
+        parts.push({ x:px, y:py+5, vx:0, vy:0, life:0.3, ml:0.3, color:"#FFD700", size:0, t:"ring", gy:0 });
+      }
+      break;
+    }
+    case "🔥": { // 불의 화신 — lighter fire outline
+      const fc = ["#fff176","#ffee58","#ffca28","#ffa726","#ff7043","#f44336","#d32f2f"];
+      for (let i = 0; i < 4; i++) {
+        const bp = bodyPoint(px, py);
+        parts.push({ x:bp.x, y:bp.y, vx:(Math.random()-0.5)*12+(bp.x-px)*0.5, vy:-35-Math.random()*30, life:0.2+Math.random()*0.3, ml:0.5, color:fc[Math.floor(Math.random()*fc.length)], size:1.8+Math.random()*2.5, t:"flame", gy:-30 });
+      }
+      for (let i = 0; i < 2; i++) {
+        const ox = (Math.random()-0.5)*12;
+        parts.push({ x:px+ox, y:py+22+Math.random()*4, vx:ox*1.2, vy:-50-Math.random()*25, life:0.15+Math.random()*0.2, ml:0.35, color:Math.random()>0.5?"#ffca28":"#fff176", size:2+Math.random()*2, t:"flame", gy:-35 });
+      }
+      break;
+    }
+    case "❤️": { // 팜므파탈 — gentle hearts
+      if (Math.random() < 0.5) {
+        const bp = bodyPoint(px, py);
+        const a = Math.atan2(bp.y-(py+5), bp.x-px);
+        parts.push({ x:bp.x, y:bp.y, vx:Math.cos(a)*5+(Math.random()-0.5)*8, vy:-14-Math.random()*14, life:0.7+Math.random()*0.6, ml:1.3, color:Math.random()>0.4?"#ff4081":"#f50057", size:4+Math.random()*4, t:"heart", gy:0 });
+      }
+      if (Math.random()<0.08) {
         const a = Math.random()*Math.PI*2;
-        parts.push({ x:px+Math.cos(a)*24, y:py+5+Math.sin(a)*15, vx:0, vy:0, life:2+Math.random(), ml:3, color:"#ff80ab", size:10+Math.random()*6, t:"orbit", a:a, r:22+Math.random()*10, cx:px, cy:py+5, spd:1.5+Math.random(), gy:0 });
+        parts.push({ x:px+Math.cos(a)*20, y:py+5+Math.sin(a)*12, vx:0, vy:0, life:2+Math.random(), ml:3, color:"#ff80ab", size:7+Math.random()*3, t:"orbit", a:a, r:18+Math.random()*8, cx:px, cy:py+5, spd:1.2+Math.random()*0.6, gy:0 });
       }
       break;
     }
@@ -1186,17 +1154,17 @@ function drawAura(ctx, playerId, emoji, px, py) {
   ctx.save();
   // Base glow per type
   if (emoji === "😀") {
-    const g = ctx.createRadialGradient(px,py+5,5,px,py+5,32);
-    g.addColorStop(0,"rgba(255,215,0,0.2)"); g.addColorStop(1,"rgba(255,215,0,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py+5,32,0,Math.PI*2); ctx.fill();
+    const g = ctx.createRadialGradient(px,py+5,4,px,py+5,22);
+    g.addColorStop(0,"rgba(255,215,0,0.12)"); g.addColorStop(1,"rgba(255,215,0,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py+5,22,0,Math.PI*2); ctx.fill();
   } else if (emoji === "🔥") {
-    const g = ctx.createRadialGradient(px,py+5,5,px,py-5,42);
-    g.addColorStop(0,"rgba(255,100,0,0.28)"); g.addColorStop(0.5,"rgba(255,60,0,0.14)"); g.addColorStop(1,"rgba(255,0,0,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py,42,0,Math.PI*2); ctx.fill();
+    const g = ctx.createRadialGradient(px,py+5,4,px,py-3,28);
+    g.addColorStop(0,"rgba(255,100,0,0.18)"); g.addColorStop(0.5,"rgba(255,60,0,0.08)"); g.addColorStop(1,"rgba(255,0,0,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py,28,0,Math.PI*2); ctx.fill();
   } else if (emoji === "❤️") {
-    const g = ctx.createRadialGradient(px,py+5,5,px,py+5,36);
-    g.addColorStop(0,"rgba(255,64,129,0.2)"); g.addColorStop(1,"rgba(255,64,129,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py+5,36,0,Math.PI*2); ctx.fill();
+    const g = ctx.createRadialGradient(px,py+5,4,px,py+5,24);
+    g.addColorStop(0,"rgba(255,64,129,0.12)"); g.addColorStop(1,"rgba(255,64,129,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py+5,24,0,Math.PI*2); ctx.fill();
   } else if (emoji === "😢") {
     ctx.globalAlpha = 0.3; ctx.strokeStyle = "#64b5f6"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(px-4,py-2); ctx.quadraticCurveTo(px-8,py+4,px-6,py+10); ctx.stroke();
@@ -1471,21 +1439,15 @@ function throwPlayer(targetId, targetPlayer) {
 
 function throwPropItem(prop) {
   if (!localPlayer || !socket) return;
-  // Find nearest other player to auto-aim
-  let targetX, targetY;
-  let closest = null, closestDist = 300;
-  for (const [id, p] of remotePlayers) {
-    const dx = p.x - localPlayer.x, dy = p.y - localPlayer.y;
-    const d = Math.sqrt(dx*dx + dy*dy);
-    if (d < closestDist) { closestDist = d; closest = p; }
-  }
-  if (closest) { targetX = closest.x; targetY = closest.y; }
-  else {
-    const dirV = { up:{x:0,y:-1}, down:{x:0,y:1}, left:{x:-1,y:0}, right:{x:1,y:0} };
-    const dv = dirV[localPlayer.direction] || {x:0,y:1};
-    targetX = localPlayer.x + dv.x * 200; targetY = localPlayer.y + dv.y * 200;
-  }
-  // Fly from prop position (not player), include propId for position update
+  // Physical direction: prop flies AWAY from player (like pushing/throwing)
+  const dx = prop.x - localPlayer.x;
+  const dy = prop.y - localPlayer.y;
+  const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+  const throwDist = 150 + Math.random() * 80;
+  let targetX = prop.x + (dx / dist) * throwDist;
+  let targetY = prop.y + (dy / dist) * throwDist;
+  targetX = Math.max(30, Math.min(MAP.width - 30, targetX));
+  targetY = Math.max(30, Math.min(MAP.height - 50, targetY));
   socket.emit("throw-prop", { propId: prop.id, propType: prop.type, fromX: prop.x, fromY: prop.y, toX: targetX, toY: targetY });
 }
 
@@ -1508,10 +1470,10 @@ function drawFlyingPlayer(ctx, obj, now) {
 function drawFlyingPropItem(ctx, obj, now) {
   const t = Math.min(1, (now - obj.startTime) / PROP_FLY_DURATION);
   const px = obj.fromX + (obj.toX - obj.fromX) * t;
-  const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 40;
+  const py = obj.fromY + (obj.toY - obj.fromY) * t - Math.sin(t * Math.PI) * 70;
   ctx.save();
   ctx.translate(px, py);
-  ctx.rotate(t * Math.PI * 5);
+  ctx.rotate(t * Math.PI * 4);
   drawProp(ctx, { type: obj.propType, x: 0, y: 0 });
   ctx.restore();
 }
@@ -1581,7 +1543,7 @@ document.getElementById("game-canvas").addEventListener("mousemove", (e) => {
   const nearby = getNearbyThrowables();
   for (const item of nearby) {
     const dx = item.data.x - worldX, dy = item.data.y - worldY;
-    const hitR = item.type === "player" ? 25 : 15;
+    const hitR = item.type === "player" ? 25 : 20;
     if (Math.sqrt(dx*dx + dy*dy) < hitR) { hoverTarget = item; break; }
   }
   document.getElementById("game-area").style.cursor = hoverTarget ? "grab" : "crosshair";
@@ -1885,8 +1847,8 @@ function render() {
       const dx = prop.x - localPlayer.x, dy = prop.y - localPlayer.y;
       if (Math.sqrt(dx*dx + dy*dy) < INTERACT_RANGE) {
         const pulse = 0.3 + Math.sin(now / 300) * 0.2;
-        ctx.font = "8px serif"; ctx.textAlign = "center"; ctx.globalAlpha = pulse;
-        ctx.fillText("👆", prop.x, prop.y - 12);
+        ctx.font = "11px serif"; ctx.textAlign = "center"; ctx.globalAlpha = pulse;
+        ctx.fillText("👆", prop.x, prop.y - 16);
         ctx.globalAlpha = 1;
       }
     }
@@ -1898,8 +1860,8 @@ function render() {
       if (item.type !== "prop") continue;
       const isHov = hoverTarget && hoverTarget.type === "prop" && hoverTarget.id === item.id;
       const pulse = isHov ? 0.7 + Math.sin(now / 150) * 0.3 : 0.3 + Math.sin(now / 300) * 0.2;
-      ctx.strokeStyle = `rgba(226,183,20,${pulse})`; ctx.lineWidth = isHov ? 2 : 1;
-      ctx.beginPath(); ctx.arc(item.data.x, item.data.y, 12, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = `rgba(226,183,20,${pulse})`; ctx.lineWidth = isHov ? 2.5 : 1.5;
+      ctx.beginPath(); ctx.arc(item.data.x, item.data.y, 18, 0, Math.PI * 2); ctx.stroke();
     }
   }
 
