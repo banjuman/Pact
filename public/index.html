@@ -929,7 +929,7 @@ var jumpToX = 0, jumpToY = 0;
 var jumpDirX = 0, jumpDirY = 0; // direction at jump start
 // Original furniture positions for robot vacuum
 var FURNITURE_ORIG = null;
-var robotVacuum = null; // { active, startTime, targets[], currentIdx, x, y, phase }
+var robotVacuums = []; // array of vacuum objects
 
 const SPEED = 150;
 const POSITION_SEND_INTERVAL = 50;
@@ -1911,7 +1911,7 @@ function update(dt) {
   updateVacuum(now);
 
   // Update throw button state
-  const vacuumActive = robotVacuum && robotVacuum.active;
+  const vacuumActive = robotVacuums.length > 0;
   const nearby = vacuumActive ? [] : getNearbyThrowables();
   const throwBtn = document.getElementById("throw-btn");
   if (nearby.length > 0) {
@@ -2111,142 +2111,185 @@ window.addEventListener("resize", () => {
 });
 
 // ═══════════════════════════════════════════
-//  ROBOT VACUUM (physically moves & throws furniture back)
+//  ROBOT VACUUM (multiple vacuums for big messes)
 // ═══════════════════════════════════════════
+const VACUUM_COLORS = ["#4fc3f7", "#ab47bc", "#66bb6a"]; // LED colors per vacuum
+const VACUUM_SPAWNS = [
+  { x: 800, y: 550 },
+  { x: 300, y: 500 },
+  { x: 1300, y: 500 },
+];
+
 function startVacuum() {
-  if (robotVacuum && robotVacuum.active) return;
+  if (robotVacuums.length > 0) return;
   if (!FURNITURE_ORIG) return;
-  const targets = [];
+  const allTargets = [];
   for (let i = 0; i < FURNITURE.length; i++) {
     if (FURNITURE[i].noCollision) continue;
     const orig = FURNITURE_ORIG[i];
     if (Math.abs(FURNITURE[i].x - orig.x) > 2 || Math.abs(FURNITURE[i].y - orig.y) > 2) {
-      targets.push(i);
+      allTargets.push(i);
     }
   }
-  if (targets.length === 0) {
+  if (allTargets.length === 0) {
     addSystemMessage("Everything is already tidy! 🧹");
     return;
   }
-  // Calculate speed so vacuum finishes in ~12 seconds total
-  let totalDist = 0;
-  let prevX = MAP.width / 2, prevY = MAP.height / 2 + 50;
-  for (const fi of targets) {
-    const fx = FURNITURE[fi].x + FURNITURE[fi].w / 2;
-    const fy = FURNITURE[fi].y + FURNITURE[fi].h / 2;
-    totalDist += Math.sqrt((fx - prevX) * (fx - prevX) + (fy - prevY) * (fy - prevY));
-    prevX = FURNITURE_ORIG[fi].x + FURNITURE[fi].w / 2;
-    prevY = FURNITURE_ORIG[fi].y + FURNITURE[fi].h / 2;
+  // More mess → more vacuums (always finish in ~10 seconds)
+  let numVacuums;
+  if (allTargets.length <= 3) numVacuums = 1;
+  else if (allTargets.length <= 7) numVacuums = 2;
+  else numVacuums = 3;
+  // Split targets round-robin among vacuums
+  const groups = [];
+  for (let v = 0; v < numVacuums; v++) groups.push([]);
+  for (let i = 0; i < allTargets.length; i++) groups[i % numVacuums].push(allTargets[i]);
+  // Create each vacuum
+  const TARGET_TIME = 10;
+  for (let v = 0; v < numVacuums; v++) {
+    if (groups[v].length === 0) continue;
+    const targets = groups[v];
+    let totalDist = 0;
+    let prevX = VACUUM_SPAWNS[v].x, prevY = VACUUM_SPAWNS[v].y;
+    for (const fi of targets) {
+      const fx = FURNITURE[fi].x + FURNITURE[fi].w / 2;
+      const fy = FURNITURE[fi].y + FURNITURE[fi].h / 2;
+      totalDist += Math.sqrt((fx - prevX) * (fx - prevX) + (fy - prevY) * (fy - prevY));
+      prevX = FURNITURE_ORIG[fi].x + FURNITURE[fi].w / 2;
+      prevY = FURNITURE_ORIG[fi].y + FURNITURE[fi].h / 2;
+    }
+    const throwPause = targets.length * 0.35;
+    const moveTime = Math.max(2, TARGET_TIME - throwPause);
+    const speed = Math.max(100, Math.min(500, totalDist / moveTime));
+    robotVacuums.push({
+      active: true, targets, currentIdx: 0,
+      x: VACUUM_SPAWNS[v].x, y: VACUUM_SPAWNS[v].y,
+      phase: "moving", phaseStart: Date.now(),
+      speed, direction: 0, colorIdx: v
+    });
   }
-  const throwPauseTotal = targets.length * 0.35;
-  const moveTime = Math.max(3, 12 - throwPauseTotal);
-  const speed = Math.max(150, Math.min(400, totalDist / moveTime));
-  robotVacuum = {
-    active: true, startTime: Date.now(), targets, currentIdx: 0,
-    x: MAP.width / 2, y: MAP.height / 2 + 50,
-    phase: "moving", phaseStart: Date.now(),
-    speed, direction: 0
-  };
-  addSystemMessage("🤖 Robot vacuum activated!");
+  const msg = numVacuums > 1
+    ? "🤖 Robot vacuums ×" + numVacuums + " dispatched!"
+    : "🤖 Robot vacuum activated!";
+  addSystemMessage(msg);
   document.getElementById("vacuum-btn").classList.add("emoji-active");
   playVacuumSound();
 }
 
 function updateVacuum(now) {
-  if (!robotVacuum || !robotVacuum.active) return;
-  const rv = robotVacuum;
+  if (robotVacuums.length === 0) return;
   const dt = 16 / 1000;
-
-  if (rv.phase === "moving") {
-    const fi = rv.targets[rv.currentIdx];
-    const tgtX = FURNITURE[fi].x + FURNITURE[fi].w / 2;
-    const tgtY = FURNITURE[fi].y + FURNITURE[fi].h / 2;
-    const dx = tgtX - rv.x, dy = tgtY - rv.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    rv.direction = Math.atan2(dy, dx);
-    if (dist < 22) {
-      // Reached furniture — throw it back to original position
-      rv.phase = "throwing"; rv.phaseStart = now;
-      const orig = FURNITURE_ORIG[fi];
-      const f = FURNITURE[fi];
-      flyingFurnSet.add(fi);
-      flyingProps.push({
-        propId: null, propType: f.type,
-        fromX: f.x + f.w / 2, fromY: f.y + f.h / 2,
-        toX: orig.x + f.w / 2, toY: orig.y + f.h / 2,
-        startTime: now, throwerId: "__vacuum__",
-        furnW: f.w, furnH: f.h, furnIdx: fi
-      });
-      playThrowSound();
-    } else {
-      rv.x += (dx / dist) * rv.speed * dt;
-      rv.y += (dy / dist) * rv.speed * dt;
-    }
-  } else if (rv.phase === "throwing") {
-    // Brief pause, then move to next target (overlaps with throw animation)
-    if (now - rv.phaseStart >= 350) {
-      rv.currentIdx++;
-      if (rv.currentIdx >= rv.targets.length) {
-        rv.phase = "finishing"; rv.phaseStart = now;
+  for (const rv of robotVacuums) {
+    if (!rv.active) continue;
+    if (rv.phase === "moving") {
+      const fi = rv.targets[rv.currentIdx];
+      const tgtX = FURNITURE[fi].x + FURNITURE[fi].w / 2;
+      const tgtY = FURNITURE[fi].y + FURNITURE[fi].h / 2;
+      const dx = tgtX - rv.x, dy = tgtY - rv.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      rv.direction = Math.atan2(dy, dx);
+      if (dist < 22) {
+        rv.phase = "throwing"; rv.phaseStart = now;
+        const orig = FURNITURE_ORIG[fi];
+        const f = FURNITURE[fi];
+        flyingFurnSet.add(fi);
+        flyingProps.push({
+          propId: null, propType: f.type,
+          fromX: f.x + f.w / 2, fromY: f.y + f.h / 2,
+          toX: orig.x + f.w / 2, toY: orig.y + f.h / 2,
+          startTime: now, throwerId: "__vacuum__",
+          furnW: f.w, furnH: f.h, furnIdx: fi
+        });
+        playThrowSound();
       } else {
-        rv.phase = "moving"; rv.phaseStart = now;
+        rv.x += (dx / dist) * rv.speed * dt;
+        rv.y += (dy / dist) * rv.speed * dt;
+      }
+    } else if (rv.phase === "throwing") {
+      if (now - rv.phaseStart >= 350) {
+        rv.currentIdx++;
+        if (rv.currentIdx >= rv.targets.length) {
+          rv.phase = "finishing"; rv.phaseStart = now;
+        } else {
+          rv.phase = "moving"; rv.phaseStart = now;
+        }
+      }
+    } else if (rv.phase === "finishing") {
+      if (now - rv.phaseStart >= PROP_FLY_DURATION + 100) {
+        rv.active = false;
       }
     }
-  } else if (rv.phase === "finishing") {
-    // Wait for last throw animation to complete
-    if (now - rv.phaseStart >= PROP_FLY_DURATION + 100) {
-      rv.active = false;
-      buildNavGrid();
-      addSystemMessage("🤖 취사가 완료되었습니다.");
-      document.getElementById("vacuum-btn").classList.remove("emoji-active");
-      stopVacuumSound();
-    }
+  }
+  // All vacuums done?
+  if (robotVacuums.every(rv => !rv.active)) {
+    robotVacuums = [];
+    buildNavGrid();
+    addSystemMessage("🤖 취사가 완료되었습니다.");
+    document.getElementById("vacuum-btn").classList.remove("emoji-active");
+    stopVacuumSound();
+    speakCompletion();
   }
 }
 
+function speakCompletion() {
+  try {
+    const u = new SpeechSynthesisUtterance("취사가 완료되었습니다.");
+    u.lang = "ko-KR";
+    u.pitch = 1.3;
+    u.rate = 0.95;
+    u.volume = 0.8;
+    const voices = speechSynthesis.getVoices();
+    const kf = voices.find(v => v.lang.startsWith("ko") && /female|여|yuna|sunhi/i.test(v.name));
+    const k = voices.find(v => v.lang.startsWith("ko"));
+    if (kf) u.voice = kf;
+    else if (k) u.voice = k;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+// Pre-load voices
+if (typeof speechSynthesis !== "undefined") speechSynthesis.getVoices();
+
 function drawVacuum(ctx, now) {
-  if (!robotVacuum || !robotVacuum.active) return;
-  const rv = robotVacuum;
-  // Shadow
-  ctx.fillStyle = "rgba(0,0,0,0.15)";
-  ctx.beginPath(); ctx.ellipse(rv.x, rv.y + 10, 13, 4, 0, 0, Math.PI * 2); ctx.fill();
-  // Body
-  ctx.save();
-  ctx.translate(rv.x, rv.y);
-  ctx.rotate(rv.direction + Math.PI / 2);
-  // Outer ring
-  ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
-  // Spinning brush lines
-  const spin = now / 100;
-  ctx.strokeStyle = "#777"; ctx.lineWidth = 1.5;
-  for (let i = 0; i < 3; i++) {
-    const a = spin + i * Math.PI * 2 / 3;
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * 8, Math.sin(a) * 8); ctx.stroke();
-  }
-  // LED eye
-  const blink = Math.sin(now / 200) > 0;
-  ctx.fillStyle = blink ? "#4fc3f7" : "#81d4fa";
-  ctx.beginPath(); ctx.arc(0, -5, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#b3e5fc"; ctx.beginPath(); ctx.arc(0, -5, 1.5, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-  // Dust trail particles when moving
-  if (rv.phase === "moving") {
-    ctx.globalAlpha = 0.25;
+  for (const rv of robotVacuums) {
+    if (!rv.active) continue;
+    const ledColor = VACUUM_COLORS[rv.colorIdx] || VACUUM_COLORS[0];
+    // Shadow
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    ctx.beginPath(); ctx.ellipse(rv.x, rv.y + 10, 13, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // Body
+    ctx.save();
+    ctx.translate(rv.x, rv.y);
+    ctx.rotate(rv.direction + Math.PI / 2);
+    ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
+    // Spinning brush
+    const spin = now / 100;
+    ctx.strokeStyle = "#777"; ctx.lineWidth = 1.5;
     for (let i = 0; i < 3; i++) {
-      const ox = (Math.random() - 0.5) * 16;
-      const oy = (Math.random() - 0.5) * 16 + 5;
-      const s = 1 + Math.random() * 2;
-      ctx.fillStyle = "#bbb";
-      ctx.beginPath(); ctx.arc(rv.x + ox, rv.y + oy, s, 0, Math.PI * 2); ctx.fill();
+      const a = spin + i * Math.PI * 2 / 3;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * 8, Math.sin(a) * 8); ctx.stroke();
     }
-    ctx.globalAlpha = 1;
+    // LED (each vacuum has its own color)
+    const blink = Math.sin(now / 200 + rv.colorIdx * 2) > 0;
+    ctx.fillStyle = blink ? ledColor : "#ddd";
+    ctx.beginPath(); ctx.arc(0, -5, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(0, -5, 1.2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // Dust trail
+    if (rv.phase === "moving") {
+      ctx.globalAlpha = 0.2;
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = "#bbb";
+        ctx.beginPath(); ctx.arc(rv.x + (Math.random() - 0.5) * 14, rv.y + (Math.random() - 0.5) * 14 + 5, 1 + Math.random() * 2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    // Progress per vacuum
+    const progress = Math.round((rv.currentIdx / rv.targets.length) * 100);
+    ctx.font = "bold 9px 'Segoe UI', system-ui"; ctx.textAlign = "center";
+    ctx.fillStyle = ledColor;
+    ctx.fillText(progress + "%", rv.x, rv.y - 20);
   }
-  // Progress
-  const progress = Math.round((rv.currentIdx / rv.targets.length) * 100);
-  ctx.font = "bold 9px 'Segoe UI', system-ui"; ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(79,195,247,0.8)";
-  ctx.fillText(progress + "%", rv.x, rv.y - 20);
 }
 
 document.getElementById("vacuum-btn").addEventListener("click", startVacuum);
@@ -2267,7 +2310,7 @@ document.getElementById("exit-btn").addEventListener("click", () => {
   flyingPlayers = []; flyingProps = []; flyingFurnSet.clear(); stunnedPlayers.clear(); wobblePlayers.clear();
   playerColorMap.clear(); usedColorIdx = 0;
   throwMode = false; hoverTarget = null; movePath = null; moveTarget = null;
-  isJumping = false; if (robotVacuum) stopVacuumSound(); robotVacuum = null;
+  isJumping = false; if (robotVacuums.length > 0) stopVacuumSound(); robotVacuums = [];
   keys = {};
   // Reset furniture positions to originals
   if (FURNITURE_ORIG) {
