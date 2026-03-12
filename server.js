@@ -15,19 +15,19 @@ app.get("/room/:roomCode", (req, res) => {
 const rooms = new Map();
 const MAX_PLAYERS = 10;
 const MAX_MOVE_PER_TICK = 50;
-const MAP_W = 4000, MAP_H = 2400;
+const MAP_W = 2400, MAP_H = 1600;
 const THROW_COOLDOWN = 10000;
 
 // Jail zone bounds (fully sealed, no doorway)
-const JAIL = { x: 2996, y: 1214, w: 990, h: 1172 };
+const JAIL = { x: 1796, y: 794, w: 590, h: 792 };
 const JAIL_CENTER = { x: JAIL.x + JAIL.w / 2, y: JAIL.y + JAIL.h / 2 };
 
 // Spawn points in the corridor
 const SPAWN_POINTS = [
-  { x: 400, y: 1154 }, { x: 600, y: 1154 }, { x: 800, y: 1154 },
-  { x: 1200, y: 1154 }, { x: 1600, y: 1154 }, { x: 2000, y: 1154 },
-  { x: 2400, y: 1154 }, { x: 2800, y: 1154 }, { x: 3200, y: 1154 },
-  { x: 3500, y: 1154 },
+  { x: 200, y: 744 }, { x: 400, y: 744 }, { x: 600, y: 744 },
+  { x: 800, y: 744 }, { x: 1000, y: 744 }, { x: 1200, y: 744 },
+  { x: 1400, y: 744 }, { x: 1600, y: 744 }, { x: 1800, y: 744 },
+  { x: 2000, y: 744 },
 ];
 
 // Valid furniture types for throw-prop whitelist
